@@ -4,7 +4,7 @@ namespace inzynierka.Services;
 
 public class CogganCalculator : ICogganCalculator
 {
-    public CogganCalculationResult Calculate(IReadOnlyList<int?> powerRecords, int userFtp)
+    public CogganCalculationResult Calculate(IReadOnlyList<int?> powerRecords, int userFtp, int durationSeconds)
     {
         // Wyciągamy sekundy z poprawnym odczytem mocy (brak odczytu/pauza = 0W)
         var cleanPower = powerRecords.Select(p => p ?? 0).ToList();
@@ -23,7 +23,7 @@ public class CogganCalculator : ICogganCalculator
         // 1. Obliczanie średniej kroczącej 30s
         if (cleanPower.Count < 30)
         {
-            // Trening za krótki na NP
+            // Trening za krótki na rzetelne NP
             return new CogganCalculationResult(avgPower, null, null, workKj, avgPower, maxPower);
         }
 
@@ -51,9 +51,10 @@ public class CogganCalculator : ICogganCalculator
             double ifVal = (double)np / userFtp;
             intensityFactor = Math.Round((decimal)ifVal, 3);
 
-            // Wzór: TSS = (s * NP * IF) / (FTP * 3600) * 100
-            double durationSec = cleanPower.Count;
-            double tssVal = (durationSec * np * ifVal) / (userFtp * 3600.0) * 100.0;
+            // Wzór Coggana: TSS = (s * NP * IF) / (FTP * 3600) * 100
+            // Jeśli durationSeconds nie zostało przekazane, używamy długości strumienia próbek
+            double effectiveDuration = durationSeconds > 0 ? durationSeconds : cleanPower.Count;
+            double tssVal = (effectiveDuration * np * ifVal) / (userFtp * 3600.0) * 100.0;
             tss = Math.Round((decimal)tssVal, 1);
         }
 

@@ -1,11 +1,11 @@
-﻿using inzynierka.Data;
+﻿using System.Security.Claims;
+using inzynierka.Data;
 using inzynierka.Models.Entities;
 using inzynierka.Models.ViewModels;
 using inzynierka.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using System.Security.Claims;
 
 namespace inzynierka.Controllers;
 
@@ -92,7 +92,7 @@ public class ProfileController : Controller
         {
             UserId = CurrentUserId,
             FtpValue = ftpValue,
-            EffectiveDate = effectiveDate
+            EffectiveDate = effectiveDate.Date
         };
 
         _context.UserFtpHistories.Add(entry);
@@ -144,18 +144,20 @@ public class ProfileController : Controller
 
         foreach (var act in activities)
         {
-            if (act.CogganMetrics == null || act.CogganMetrics.NormalizedPower == null || act.CogganMetrics.NormalizedPower <= 0)
+            if (act.CogganMetrics?.NormalizedPower == null || act.CogganMetrics.NormalizedPower <= 0)
                 continue;
 
+            // Porównanie z uwzględnieniem samej daty (bez godzin)
             var effectiveFtp = ftpEntries
-                .FirstOrDefault(f => f.EffectiveDate <= act.StartTime)?.FtpValue ?? fallbackFtp;
+                .FirstOrDefault(f => f.EffectiveDate.Date <= act.StartTime.Date)?.FtpValue ?? fallbackFtp;
 
             if (effectiveFtp <= 0) effectiveFtp = fallbackFtp;
 
             int np = act.CogganMetrics.NormalizedPower.Value;
             decimal ifFactor = Math.Round((decimal)np / effectiveFtp, 3);
 
-            int durationSec = act.DurationSeconds;
+            // Spójne z ActivityService: czas w ruchu (Moving Time), a jeśli brak to łączny czas
+            int durationSec = act.MovingTimeSeconds > 0 ? act.MovingTimeSeconds : act.DurationSeconds;
             decimal tss = (durationSec * np * ifFactor) / (effectiveFtp * 3600m) * 100m;
 
             act.CogganMetrics.IntensityFactor = ifFactor;

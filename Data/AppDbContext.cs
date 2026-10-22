@@ -2,7 +2,6 @@
 
 using inzynierka.Models.Entities;
 using Microsoft.EntityFrameworkCore;
-using System.Reflection.Emit;
 
 public class AppDbContext : DbContext
 {
@@ -14,10 +13,8 @@ public class AppDbContext : DbContext
     public DbSet<UserFtpHistory> UserFtpHistories => Set<UserFtpHistory>();
     public DbSet<Activity> Activities => Set<Activity>();
     public DbSet<ActivityCogganMetrics> ActivityCogganMetrics => Set<ActivityCogganMetrics>();
-    public DbSet<ActivityRecord> ActivityRecords => Set<ActivityRecord>();
     public DbSet<DailyMetric> DailyMetrics => Set<DailyMetric>();
     public DbSet<ActivityPowerPeak> ActivityPowerPeaks => Set<ActivityPowerPeak>();
-    // UploadJob entities removed - background processing uses folder scan
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -64,22 +61,6 @@ public class AppDbContext : DbContext
 
             entity.Property(m => m.IntensityFactor).HasPrecision(4, 3);
             entity.Property(m => m.TrainingStressScore).HasPrecision(6, 1);
-            entity.Property(m => m.Decoupling).HasPrecision(5, 2);
-        });
-
-        modelBuilder.Entity<ActivityRecord>(entity =>
-        {
-            entity.HasKey(r => r.Id);
-            entity.HasOne(r => r.Activity)
-                  .WithMany(a => a.Records)
-                  .HasForeignKey(r => r.ActivityId)
-                  .OnDelete(DeleteBehavior.Cascade);
-
-            entity.HasIndex(r => new { r.ActivityId, r.Timestamp });
-
-            entity.Property(r => r.SpeedKmh).HasPrecision(5, 2);
-            entity.Property(r => r.AltitudeMeters).HasPrecision(6, 1);
-            entity.Property(r => r.DistanceMeters).HasPrecision(10, 2);
         });
 
         modelBuilder.Entity<DailyMetric>(entity =>
@@ -107,7 +88,5 @@ public class AppDbContext : DbContext
 
             entity.HasIndex(p => new { p.ActivityId, p.DurationSeconds });
         });
-
-        // UploadJob entities removed - background processing uses folder scan
     }
 }

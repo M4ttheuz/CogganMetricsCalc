@@ -1,7 +1,7 @@
-﻿using inzynierka.Data;
+﻿using System.Collections.Concurrent;
+using inzynierka.Data;
 using inzynierka.Models.Entities;
 using Microsoft.EntityFrameworkCore;
-// restored original ActivityService behavior (synchronous bulk processing)
 
 namespace inzynierka.Services;
 
@@ -11,6 +11,7 @@ public class ActivityService : IActivityService
     private readonly IFitParserService _fitParser;
     private readonly ICogganCalculator _cogganCalculator;
     private readonly IPmcService _pmcService;
+
     public ActivityService(
         AppDbContext context,
         IFitParserService fitParser,
@@ -25,34 +26,33 @@ public class ActivityService : IActivityService
 
     public async Task<Activity> ProcessAndSaveFitFileAsync(Stream fileStream, string fileName, int userId)
     {
-        // 1. Parsowanie pliku binarnego
         var parsedData = await _fitParser.ParseAsync(fileStream, fileName);
 
-        // 2. Walidacja unikalności (ochrona przed dublowaniem tego samego treningu)
         var isDuplicate = await _context.Activities
-    .AnyAsync(a => a.UserId == userId && a.FileHash == parsedData.FileHash);
+            .AnyAsync(a => a.UserId == userId && a.FileHash == parsedData.FileHash);
 
         if (isDuplicate)
         {
             throw new InvalidOperationException("Ten plik treningowy został już wcześniej przez Ciebie wgrany.");
         }
 
-        // 3. Pobranie FTP obowiązującego w momencie wykonywania treningu
-        var effectiveFtp = await _context.UserFtpHistories
-            .Where(f => f.UserId == userId && f.EffectiveDate <= parsedData.StartTime)
+        var ftpHistory = await _context.UserFtpHistories
+            .Where(f => f.UserId == userId)
             .OrderByDescending(f => f.EffectiveDate)
-            .Select(f => f.FtpValue)
-            .FirstOrDefaultAsync();
+            .ToListAsync();
 
-        // 4. Wyliczenie metryk Coggana (NP, IF, TSS)
+        var fallbackFtp = ftpHistory.LastOrDefault()?.FtpValue ?? 250;
+        var effectiveFtp = ftpHistory
+            .FirstOrDefault(f => f.EffectiveDate <= parsedData.StartTime)?.FtpValue ?? fallbackFtp;
+
+        if (effectiveFtp <= 0) effectiveFtp = fallbackFtp;
+
         var powerStream = parsedData.Records.Select(r => r.Power).ToList();
-        var cogganResult = _cogganCalculator.Calculate(powerStream, effectiveFtp);
+        int durationForTss = parsedData.MovingTimeSeconds > 0 ? parsedData.MovingTimeSeconds : parsedData.DurationSeconds;
+        var cogganResult = _cogganCalculator.Calculate(powerStream, effectiveFtp, durationForTss);
 
-        // Pobieramy wagę użytkownika
         var user = await _context.Users.FindAsync(userId);
         var userWeight = user?.WeightKg;
-
-        // Wyliczenie rekordów mocy
         var calculatedPeaks = _cogganCalculator.CalculatePowerPeaks(powerStream, userWeight);
 
         var activity = new Activity
@@ -67,6 +67,7 @@ public class ActivityService : IActivityService
             TotalElevationGain = parsedData.TotalElevationGain,
             FileHash = parsedData.FileHash,
             CreatedAt = DateTime.UtcNow,
+            TelemetryBlob = TelemetryCompressor.Compress(parsedData.Records),
             CogganMetrics = new ActivityCogganMetrics
             {
                 NormalizedPower = cogganResult.NormalizedPower,
@@ -83,11 +84,9 @@ public class ActivityService : IActivityService
                 DurationSeconds = p.DurationSeconds,
                 Watts = p.Watts,
                 WattsPerKg = p.WattsPerKg
-            }).ToList(),
-            Records = parsedData.Records
+            }).ToList()
         };
 
-        // 6. Zapis całości w jednej transakcji
         _context.Activities.Add(activity);
         await _context.SaveChangesAsync();
         await _pmcService.RecalculatePmcAsync(userId);
@@ -98,6 +97,7 @@ public class ActivityService : IActivityService
     public async Task<Activity?> GetActivityDetailsAsync(int activityId)
     {
         return await _context.Activities
+            .AsNoTracking()
             .Include(a => a.User)
             .Include(a => a.CogganMetrics)
             .Include(a => a.PowerPeaks)
@@ -107,6 +107,7 @@ public class ActivityService : IActivityService
     public async Task<List<Activity>> GetRecentActivitiesAsync(int userId)
     {
         return await _context.Activities
+            .AsNoTracking()
             .Where(a => a.UserId == userId)
             .OrderByDescending(a => a.StartTime)
             .Include(a => a.CogganMetrics)
@@ -115,37 +116,41 @@ public class ActivityService : IActivityService
 
     public async Task<BulkUploadResult> BulkUploadAsync(IEnumerable<(Stream fileStream, string fileName)> files, int userId)
     {
-        int successCount = 0;
+        var messages = new ConcurrentBag<string>();
         int skippedCount = 0;
-        var messages = new List<string>();
 
         var user = await _context.Users.FindAsync(userId);
         var userWeight = user?.WeightKg;
 
-        // Pobranie historii FTP użytkownika do pamięci podręcznej
         var ftpHistory = await _context.UserFtpHistories
             .Where(f => f.UserId == userId)
             .OrderByDescending(f => f.EffectiveDate)
             .ToListAsync();
 
-        var fallbackFtp = ftpHistory.LastOrDefault()?.FtpValue ?? 200;
+        var fallbackFtp = ftpHistory.LastOrDefault()?.FtpValue ?? 250;
 
-        // Zmienna pomocnicza do kontroli duplikatów w obrębie tej paczki
-        var processedHashes = new HashSet<string>();
+        var existingHashes = await _context.Activities
+            .Where(a => a.UserId == userId)
+            .Select(a => a.FileHash)
+            .ToHashSetAsync();
 
-        // Batching: grupujemy zapisy do bazy, żeby nie wywoływać SaveChangesAsync() dla każdego pliku
-        const int BatchSize = 50;
-        var pendingActivities = new List<(Activity activity, string fileName)>();
+        var validFiles = files
+            .Where(f => f.fileStream != null && f.fileStream.Length > 0 && f.fileName.EndsWith(".fit", StringComparison.OrdinalIgnoreCase))
+            .ToList();
 
-        foreach (var (fileStream, fileName) in files)
+        skippedCount += (files.Count() - validFiles.Count);
+
+        var parsedActivities = new ConcurrentBag<(Activity activity, string fileName)>();
+        var batchHashes = new ConcurrentDictionary<string, byte>();
+
+        var parallelOptions = new ParallelOptions
         {
-            if (fileStream == null || fileStream.Length == 0 || !fileName.EndsWith(".fit", StringComparison.OrdinalIgnoreCase))
-            {
-                skippedCount++;
-                messages.Add($"{fileName}: Niepoprawny plik.");
-                continue;
-            }
+            MaxDegreeOfParallelism = Environment.ProcessorCount
+        };
 
+        await Parallel.ForEachAsync(validFiles, parallelOptions, async (fileItem, cancellationToken) =>
+        {
+            var (fileStream, fileName) = fileItem;
             try
             {
                 if (fileStream.CanSeek)
@@ -155,24 +160,20 @@ public class ActivityService : IActivityService
 
                 var parsedData = await _fitParser.ParseAsync(fileStream, fileName);
 
-                // Sprawdzenie duplikatu dla tego użytkownika (w DB) oraz w obrębie obecnej paczki
-                var isDuplicateInDb = await _context.Activities
-                    .AnyAsync(a => a.UserId == userId && a.FileHash == parsedData.FileHash);
-
-                if (isDuplicateInDb || processedHashes.Contains(parsedData.FileHash))
+                if (existingHashes.Contains(parsedData.FileHash) || !batchHashes.TryAdd(parsedData.FileHash, 0))
                 {
-                    skippedCount++;
+                    Interlocked.Increment(ref skippedCount);
                     messages.Add($"{fileName}: Plik był już wcześniej wgrany.");
-                    continue;
+                    return;
                 }
 
-                // Wyznaczenie właściwego FTP dla daty treningu
                 var effectiveFtp = ftpHistory
                     .FirstOrDefault(f => f.EffectiveDate <= parsedData.StartTime)?.FtpValue ?? fallbackFtp;
+                if (effectiveFtp <= 0) effectiveFtp = fallbackFtp;
 
-                // Obliczenia Coggana
                 var powerStream = parsedData.Records.Select(r => r.Power).ToList();
-                var cogganResult = _cogganCalculator.Calculate(powerStream, effectiveFtp);
+                int durationForTss = parsedData.MovingTimeSeconds > 0 ? parsedData.MovingTimeSeconds : parsedData.DurationSeconds;
+                var cogganResult = _cogganCalculator.Calculate(powerStream, effectiveFtp, durationForTss);
                 var calculatedPeaks = _cogganCalculator.CalculatePowerPeaks(powerStream, userWeight);
 
                 var activity = new Activity
@@ -187,6 +188,7 @@ public class ActivityService : IActivityService
                     TotalElevationGain = parsedData.TotalElevationGain,
                     FileHash = parsedData.FileHash,
                     CreatedAt = DateTime.UtcNow,
+                    TelemetryBlob = TelemetryCompressor.Compress(parsedData.Records),
                     CogganMetrics = new ActivityCogganMetrics
                     {
                         NormalizedPower = cogganResult.NormalizedPower,
@@ -203,71 +205,40 @@ public class ActivityService : IActivityService
                         DurationSeconds = p.DurationSeconds,
                         Watts = p.Watts,
                         WattsPerKg = p.WattsPerKg
-                    }).ToList(),
-                    Records = parsedData.Records
+                    }).ToList()
                 };
 
-                // Dodajemy do listy oczekujących zapisów
-                pendingActivities.Add((activity, fileName));
-                processedHashes.Add(parsedData.FileHash);
-
-                // Gdy osiągniemy wielkość batcha - zapiszemy wszystko na raz
-                if (pendingActivities.Count >= BatchSize)
-                {
-                    try
-                    {
-                        _context.Activities.AddRange(pendingActivities.Select(p => p.activity));
-                        await _context.SaveChangesAsync();
-                        successCount += pendingActivities.Count;
-                        pendingActivities.Clear();
-                    }
-                    catch (Exception ex)
-                    {
-                        // W przypadku błędu zapisu oznaczamy pliki jako pominięte i czyścimy kontekst
-                        foreach (var (act, fName) in pendingActivities)
-                        {
-                            skippedCount++;
-                            messages.Add($"{fName}: Błąd zapisu ({ex.Message}).");
-                        }
-
-                        // Odłącz wszystkie dodane encje, żeby czyścić stan kontekstu
-                        foreach (var entry in _context.ChangeTracker.Entries().Where(e => e.State == EntityState.Added).ToList())
-                        {
-                            entry.State = EntityState.Detached;
-                        }
-
-                        pendingActivities.Clear();
-                    }
-                }
+                parsedActivities.Add((activity, fileName));
             }
             catch (Exception ex)
             {
-                skippedCount++;
+                Interlocked.Increment(ref skippedCount);
                 messages.Add($"{fileName}: Błąd parsowania ({ex.Message}).");
             }
-        }
+        });
 
-        // Zapisz pozostałe oczekujące aktywności (jeśli są)
-        if (pendingActivities.Count > 0)
+        int successCount = 0;
+        const int BatchSize = 50;
+        var queue = parsedActivities.ToList();
+
+        for (int i = 0; i < queue.Count; i += BatchSize)
         {
+            var chunk = queue.Skip(i).Take(BatchSize).ToList();
             try
             {
-                _context.Activities.AddRange(pendingActivities.Select(p => p.activity));
+                _context.Activities.AddRange(chunk.Select(c => c.activity));
                 await _context.SaveChangesAsync();
-                successCount += pendingActivities.Count;
+                _context.ChangeTracker.Clear();
+                successCount += chunk.Count;
             }
             catch (Exception ex)
             {
-                foreach (var (act, fName) in pendingActivities)
+                foreach (var item in chunk)
                 {
                     skippedCount++;
-                    messages.Add($"{fName}: Błąd zapisu ({ex.Message}).");
+                    messages.Add($"{item.fileName}: Błąd zapisu ({ex.Message}).");
                 }
-
-                foreach (var entry in _context.ChangeTracker.Entries().Where(e => e.State == EntityState.Added).ToList())
-                {
-                    entry.State = EntityState.Detached;
-                }
+                _context.ChangeTracker.Clear();
             }
         }
 
@@ -276,6 +247,6 @@ public class ActivityService : IActivityService
             await _pmcService.RecalculatePmcAsync(userId);
         }
 
-        return new BulkUploadResult(successCount, skippedCount, messages);
+        return new BulkUploadResult(successCount, skippedCount, messages.ToList());
     }
 }

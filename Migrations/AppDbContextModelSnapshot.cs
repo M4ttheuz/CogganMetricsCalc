@@ -46,6 +46,9 @@ namespace inzynierka.Migrations
                     b.Property<DateTime>("StartTime")
                         .HasColumnType("TEXT");
 
+                    b.Property<byte[]>("TelemetryBlob")
+                        .HasColumnType("BLOB");
+
                     b.Property<string>("Title")
                         .IsRequired()
                         .HasColumnType("TEXT");
@@ -76,10 +79,6 @@ namespace inzynierka.Migrations
 
                     b.Property<int?>("AvgPower")
                         .HasColumnType("INTEGER");
-
-                    b.Property<decimal?>("Decoupling")
-                        .HasPrecision(5, 2)
-                        .HasColumnType("TEXT");
 
                     b.Property<decimal?>("IntensityFactor")
                         .HasPrecision(4, 3)
@@ -131,52 +130,6 @@ namespace inzynierka.Migrations
                     b.ToTable("ActivityPowerPeaks");
                 });
 
-            modelBuilder.Entity("inzynierka.Models.Entities.ActivityRecord", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
-
-                    b.Property<int>("ActivityId")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<decimal?>("AltitudeMeters")
-                        .HasPrecision(6, 1)
-                        .HasColumnType("TEXT");
-
-                    b.Property<int?>("Cadence")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<decimal?>("DistanceMeters")
-                        .HasPrecision(10, 2)
-                        .HasColumnType("TEXT");
-
-                    b.Property<int?>("HeartRate")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<double?>("Latitude")
-                        .HasColumnType("REAL");
-
-                    b.Property<double?>("Longitude")
-                        .HasColumnType("REAL");
-
-                    b.Property<int?>("Power")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<decimal?>("SpeedKmh")
-                        .HasPrecision(5, 2)
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTime>("Timestamp")
-                        .HasColumnType("TEXT");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ActivityId", "Timestamp");
-
-                    b.ToTable("ActivityRecords");
-                });
-
             modelBuilder.Entity("inzynierka.Models.Entities.DailyMetric", b =>
                 {
                     b.Property<int>("Id")
@@ -212,8 +165,6 @@ namespace inzynierka.Migrations
 
                     b.ToTable("DailyMetrics");
                 });
-
-
 
             modelBuilder.Entity("inzynierka.Models.Entities.User", b =>
                 {
@@ -299,17 +250,6 @@ namespace inzynierka.Migrations
                     b.Navigation("Activity");
                 });
 
-            modelBuilder.Entity("inzynierka.Models.Entities.ActivityRecord", b =>
-                {
-                    b.HasOne("inzynierka.Models.Entities.Activity", "Activity")
-                        .WithMany("Records")
-                        .HasForeignKey("ActivityId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Activity");
-                });
-
             modelBuilder.Entity("inzynierka.Models.Entities.DailyMetric", b =>
                 {
                     b.HasOne("inzynierka.Models.Entities.User", "User")
@@ -320,8 +260,6 @@ namespace inzynierka.Migrations
 
                     b.Navigation("User");
                 });
-
-
 
             modelBuilder.Entity("inzynierka.Models.Entities.UserFtpHistory", b =>
                 {
@@ -339,11 +277,7 @@ namespace inzynierka.Migrations
                     b.Navigation("CogganMetrics");
 
                     b.Navigation("PowerPeaks");
-
-                    b.Navigation("Records");
                 });
-
-
 
             modelBuilder.Entity("inzynierka.Models.Entities.User", b =>
                 {

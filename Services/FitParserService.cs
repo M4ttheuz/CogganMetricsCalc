@@ -32,6 +32,8 @@ public class FitParserService : IFitParserService
         int? sessionAvgHr = null;
         int? sessionMaxHr = null;
         var detectedSport = SportType.Road;
+        bool isCyclingSession = false;
+        string rawSportName = "Nieznany";
 
         using var decodeStream = new MemoryStream(fileBytes);
         var decode = new Decode();
@@ -114,19 +116,36 @@ public class FitParserService : IFitParserService
             var fitSport = sessionMesg.GetSport();
             var fitSubSport = sessionMesg.GetSubSport();
 
+            rawSportName = fitSport.ToString();
+
             if (fitSport == Sport.Cycling)
             {
+                isCyclingSession = true;
                 detectedSport = fitSubSport switch
                 {
                     SubSport.Mountain => SportType.Mtb,
+                    SubSport.GravelCycling => SportType.Gravel,
                     SubSport.IndoorCycling => SportType.Trainer,
                     _ => SportType.Road
                 };
             }
         };
 
-        // 3. Sprawdzenie integralności pliku i odczyt danych
+        // 3. Odczyt strumienia FIT
         decode.Read(decodeStream);
+
+        // Fallback: jeśli nagłówek sesji nie miał ustawionego Sport.Cycling, ale rekordy mają moc (power meter)
+        if (!isCyclingSession && records.Any(r => r.Power.HasValue && r.Power.Value > 0))
+        {
+            isCyclingSession = true;
+            detectedSport = SportType.Road;
+        }
+
+        // 4. Blokada innych dyscyplin (bieganie, spacer, pływanie, siłownia)
+        if (!isCyclingSession)
+        {
+            throw new InvalidOperationException($"Plik nie zawiera aktywności kolarskiej (wykryto: {rawSportName}). VeloAnalytics obsługuje wyłącznie sesje rowerowe.");
+        }
 
         if (records.Count > 0)
         {

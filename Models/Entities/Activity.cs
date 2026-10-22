@@ -1,7 +1,6 @@
 ﻿namespace inzynierka.Models.Entities;
 
 using inzynierka.Models.Enums;
-using inzynierka.Models.Entities;
 
 public class Activity
 {
@@ -17,8 +16,9 @@ public class Activity
     public string FileHash { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
+    public byte[]? TelemetryBlob { get; set; }
+
     public User User { get; set; } = null!;
     public ActivityCogganMetrics? CogganMetrics { get; set; }
-    public ICollection<ActivityRecord> Records { get; set; } = new List<ActivityRecord>();
     public ICollection<ActivityPowerPeak> PowerPeaks { get; set; } = new List<ActivityPowerPeak>();
 }

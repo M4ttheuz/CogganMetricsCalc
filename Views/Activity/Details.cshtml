@@ -33,10 +33,15 @@
                 <i class="bi bi-calendar3 me-1"></i> @Model.StartTime.ToString("f")
             </small>
         </div>
-        <div class="d-flex gap-2">
+        <div class="d-flex align-items-center gap-2">
             <span class="badge bg-dark fs-6 fw-normal px-3 py-2 d-flex align-items-center gap-1">
                 <i class="bi bi-bicycle"></i> @Model.SportType
             </span>
+            <form asp-action="Delete" asp-route-id="@Model.Id" method="post" class="d-inline" onsubmit="return confirm('Czy na pewno chcesz bezpowrotnie usunąć ten trening? Wszystkie powiązane rekordy i wykresy PMC zostaną przeliczone.');">
+                <button type="submit" class="btn btn-outline-danger btn-sm px-3 py-2" title="Usuń aktywność">
+                    <i class="bi bi-trash3 me-1"></i> Usuń
+                </button>
+            </form>
         </div>
     </div>
 

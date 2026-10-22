@@ -15,7 +15,7 @@ public record PowerPeakDto(int DurationSeconds, string Label, int Watts, decimal
 
 public interface ICogganCalculator
 {
-    CogganCalculationResult Calculate(IReadOnlyList<int?> powerRecords, int userFtp);
+    CogganCalculationResult Calculate(IReadOnlyList<int?> powerRecords, int userFtp, int durationSeconds);
     PowerZonesResult CalculateZones(IReadOnlyList<int?> powerRecords, int userFtp);
     List<PowerPeakDto> CalculatePowerPeaks(IReadOnlyList<int?> powerRecords, decimal? userWeightKg);
     List<int> CalculateFullPowerCurve(IReadOnlyList<int?> powerRecords);
