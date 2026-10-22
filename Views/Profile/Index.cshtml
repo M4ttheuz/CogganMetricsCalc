@@ -1,0 +1,124 @@
+﻿@model inzynierka.Models.ViewModels.ProfileViewModel
+@{
+    ViewData["Title"] = "Profil kolarza";
+}
+
+<div class="container mt-4">
+    <h2>Profil zawodnika i historia FTP</h2>
+
+    @if (TempData["Error"] != null)
+    {
+        <div class="alert alert-danger">@TempData["Error"]</div>
+    }
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success">@TempData["Success"]</div>
+    }
+
+    <div class="row g-4 mt-1">
+        <!-- Lewa kolumna: Parametry zawodnika -->
+        <div class="col-md-5">
+            <div class="card mb-4">
+                <div class="card-header bg-dark text-white">Podstawowe dane</div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="text-muted">Konto użytkownika</label>
+                        <div class="fw-bold">@Model.Email</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="text-muted">Aktualne FTP</label>
+                        <div class="h3 text-primary mb-0">@(Model.CurrentFtp > 0 ? $"{Model.CurrentFtp} W" : "Nieustawione")</div>
+                        @if (Model.CurrentFtp > 0 && Model.WeightKg > 0)
+                        {
+                            <small class="text-muted">Stosunek mocy do masy: <strong>@(Math.Round(Model.CurrentFtp / Model.WeightKg, 2)) W/kg</strong></small>
+                        }
+                    </div>
+
+                    <hr />
+
+                    <form asp-action="UpdateWeight" method="post">
+                        <label class="form-label fw-bold">Masa ciała (kg)</label>
+                        <div class="input-group mb-2">
+                            <input type="number" step="0.1" name="weightKg" value="@Model.WeightKg" class="form-control" required />
+                            <button class="btn btn-outline-primary" type="submit">Zapisz wagę</button>
+                        </div>
+                        <small class="text-muted">Potrzebna do wyliczania W/kg dla krzywej mocy.</small>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Dodaj nowe FTP -->
+            <div class="card">
+                <div class="card-header bg-primary text-white">Wprowadź nowy próg FTP</div>
+                <div class="card-body">
+                    <form asp-action="AddFtp" method="post">
+                        <div class="mb-3">
+                            <label class="form-label">Wartość FTP [W]</label>
+                            <input type="number" name="ftpValue" value="@Model.NewFtpValue" min="50" max="600" class="form-control" required />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Obowiązuje od daty</label>
+                            <input type="date" name="effectiveDate" value="@Model.NewFtpEffectiveDate.ToString("yyyy-MM-dd")" class="form-control" required />
+                            <small class="text-muted">Treningi wykonane po tej dacie automatycznie użyją tej wartości do wyliczenia IF i TSS.</small>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100">Zapisz i przelicz historię</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Prawa kolumna: Oś czasu FTP -->
+        <div class="col-md-7">
+            <div class="card">
+                <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+                    <span>Historia zmian FTP</span>
+                    <span class="badge bg-secondary">@Model.FtpHistory.Count wpisów</span>
+                </div>
+                <div class="card-body p-0">
+                    <table class="table table-striped table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Obowiązuje od</th>
+                                <th>Moc progu</th>
+                                <th>W/kg</th>
+                                <th class="text-end">Akcje</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var entry in Model.FtpHistory)
+                            {
+                                <tr>
+                                    <td>@entry.EffectiveDate.ToString("yyyy-MM-dd")</td>
+                                    <td><strong>@entry.FtpValue W</strong></td>
+                                    <td>
+                                        @if (Model.WeightKg > 0)
+                                        {
+                                            <span>@(Math.Round(entry.FtpValue / Model.WeightKg, 2)) W/kg</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">-</span>
+                                        }
+                                    </td>
+                                    <td class="text-end">
+                                        <form asp-action="DeleteFtp" method="post" class="d-inline" onsubmit="return confirm('Usunąć ten próg FTP? Wszystkie powiązane treningi zostaną przeliczone.');">
+                                            <input type="hidden" name="id" value="@entry.Id" />
+                                            <button type="submit" class="btn btn-sm btn-outline-danger">Usuń</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            }
+                            @if (!Model.FtpHistory.Any())
+                            {
+                                <tr>
+                                    <td colspan="4" class="text-center py-3 text-muted">Brak zarejestrowanej historii progów.</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

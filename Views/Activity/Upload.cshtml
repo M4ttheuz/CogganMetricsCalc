@@ -1,0 +1,237 @@
+﻿@{
+    ViewData["Title"] = "Import treningów FIT";
+}
+
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="mb-3">
+            <a asp-action="Index" class="btn btn-sm btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> Wróć do pulpitu
+            </a>
+        </div>
+
+        <div class="card border-0 shadow-sm">
+            <div class="card-body p-4">
+                <div class="text-center mb-4">
+                    <div class="bg-primary bg-opacity-10 text-primary rounded-circle d-inline-flex p-3 mb-2">
+                        <i class="bi bi-cloud-arrow-up fs-2"></i>
+                    </div>
+                    <h4 class="fw-bold mb-1">Centrum Importu Treningów</h4>
+                    <p class="text-muted small">Przeciągnij lub wskaż pliki <code>.fit</code> ze swojego licznika lub trenażera</p>
+                </div>
+
+                <div id="dropZone" class="border border-2 border-dashed rounded p-5 text-center bg-light mb-4" 
+                     style="border-color: #cbd5e1 !important; cursor: pointer; transition: all 0.2s;">
+                    <i class="bi bi-file-earmark-arrow-up fs-1 text-muted"></i>
+                    <h6 class="fw-bold mt-3 mb-1">Przeciągnij pliki tutaj</h6>
+                    <p class="text-muted small mb-3">lub kliknij, aby wybrać z dysku (możesz zaznaczyć wiele)</p>
+                    <button type="button" class="btn btn-sm btn-outline-primary fw-semibold" onclick="document.getElementById('fileInput').click()">
+                        Wybierz pliki
+                    </button>
+                    <input type="file" id="fileInput" multiple accept=".fit" class="d-none" />
+                </div>
+
+                <div id="fileListCard" class="card bg-light border-0 mb-4" style="display: none;">
+                    <div class="card-body p-3">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="fw-semibold small text-dark"><i class="bi bi-list-check me-1"></i> Wybrane pliki (<span id="fileCount">0</span>)</span>
+                            <button type="button" class="btn btn-link btn-sm text-danger text-decoration-none p-0" id="clearFilesBtn">Wyczyść listę</button>
+                        </div>
+                        <ul class="list-group list-group-flush small" id="fileList" style="max-height: 220px; overflow-y: auto;"></ul>
+                    </div>
+                </div>
+
+                <div id="progressSection" style="display: none;" class="mb-4">
+                    <div class="d-flex justify-content-between small text-muted mb-1">
+                        <span id="statusText">Przygotowywanie importu...</span>
+                        <span id="percentText" class="fw-bold text-dark">0%</span>
+                    </div>
+                    <div class="progress" style="height: 12px; border-radius: 6px;">
+                        <div id="uploadProgressBar" class="progress-bar progress-bar-striped progress-bar-animated bg-primary" role="progressbar" style="width: 0%"></div>
+                    </div>
+                </div>
+
+                <div id="resultBox" style="display: none;" class="mb-4"></div>
+
+                <div class="d-grid gap-2">
+                    <button type="button" id="startUploadBtn" class="btn btn-primary py-2 fw-semibold" disabled>
+                        <i class="bi bi-cpu me-1"></i> Rozpocznij import danych
+                    </button>
+                    <a asp-action="Index" id="dashboardReturnBtn" class="btn btn-outline-dark py-2 fw-semibold" style="display: none;">
+                        Przejdź do pulpitu aktywności &rarr;
+                    </a>
+                </div>
+
+            </div>
+        </div>
+    </div>
+</div>
+
+<form id="antiForgeryForm">
+    @Html.AntiForgeryToken()
+</form>
+
+@section Scripts {
+    <script>
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        const fileListCard = document.getElementById('fileListCard');
+        const fileList = document.getElementById('fileList');
+        const fileCount = document.getElementById('fileCount');
+        const clearFilesBtn = document.getElementById('clearFilesBtn');
+        const startUploadBtn = document.getElementById('startUploadBtn');
+        const progressSection = document.getElementById('progressSection');
+        const uploadProgressBar = document.getElementById('uploadProgressBar');
+        const statusText = document.getElementById('statusText');
+        const percentText = document.getElementById('percentText');
+        const resultBox = document.getElementById('resultBox');
+        const dashboardReturnBtn = document.getElementById('dashboardReturnBtn');
+
+        let selectedFiles = [];
+
+        ['dragenter', 'dragover'].forEach(name => {
+            dropZone.addEventListener(name, (e) => {
+                e.preventDefault();
+                dropZone.style.backgroundColor = '#e2e8f0';
+                dropZone.style.borderColor = '#0284c7';
+            });
+        });
+
+        ['dragleave', 'drop'].forEach(name => {
+            dropZone.addEventListener(name, (e) => {
+                e.preventDefault();
+                dropZone.style.backgroundColor = '#f8fafc';
+                dropZone.style.borderColor = '#cbd5e1';
+            });
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            const files = Array.from(e.dataTransfer.files).filter(f => f.name.toLowerCase().endsWith('.fit'));
+            addFiles(files);
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            const files = Array.from(e.target.files).filter(f => f.name.toLowerCase().endsWith('.fit'));
+            addFiles(files);
+        });
+
+        function addFiles(files) {
+            selectedFiles = [...selectedFiles, ...files];
+            renderFileList();
+        }
+
+        function renderFileList() {
+            fileList.innerHTML = '';
+            if (selectedFiles.length === 0) {
+                fileListCard.style.display = 'none';
+                startUploadBtn.disabled = true;
+                return;
+            }
+
+            fileListCard.style.display = 'block';
+            startUploadBtn.disabled = false;
+            fileCount.innerText = selectedFiles.length;
+
+            selectedFiles.forEach((file, index) => {
+                const li = document.createElement('li');
+                li.id = `file-item-${index}`;
+                li.className = 'list-group-item d-flex justify-content-between align-items-center bg-white px-2 py-1 mb-1 rounded border';
+                const sizeKb = (file.size / 1024).toFixed(0);
+                li.innerHTML = `
+                    <span class="text-truncate" style="max-width: 70%;">
+                        <i class="bi bi-file-earmark me-1 text-primary"></i>${file.name}
+                    </span>
+                    <span class="badge bg-light text-muted border file-status" style="font-size: 0.75rem;">Oczekuje</span>
+                `;
+                fileList.appendChild(li);
+            });
+
+            clearFilesBtn.style.display = selectedFiles.length ? 'inline-block' : 'none';
+        }
+
+        clearFilesBtn.addEventListener('click', () => {
+            selectedFiles = [];
+            fileInput.value = '';
+            renderFileList();
+        });
+
+        startUploadBtn.addEventListener('click', async () => {
+            if (selectedFiles.length === 0) return;
+
+            startUploadBtn.disabled = true;
+            dropZone.style.pointerEvents = 'none';
+            dropZone.style.opacity = '0.5';
+            clearFilesBtn.style.display = 'none';
+            progressSection.style.display = 'block';
+            resultBox.style.display = 'none';
+
+            const token = document.querySelector('#antiForgeryForm input[name="__RequestVerificationToken"]').value;
+            const total = selectedFiles.length;
+            let successCount = 0;
+            let skippedCount = 0;
+
+            for (let i = 0; i < total; i++) {
+                const file = selectedFiles[i];
+                const itemElem = document.getElementById(`file-item-${i}`);
+                const statusBadge = itemElem.querySelector('.file-status');
+
+                statusBadge.className = 'badge bg-primary';
+                statusBadge.innerText = 'Przetwarzanie...';
+
+                statusText.innerText = `Przetwarzanie: ${file.name} (${i + 1}/${total})`;
+                const currentPercent = Math.round((i / total) * 100);
+                uploadProgressBar.style.width = `${currentPercent}%`;
+                percentText.innerText = `${currentPercent}%`;
+
+                const formData = new FormData();
+                formData.append('file', file);
+
+                try {
+                    const response = await fetch('/Activity/UploadSingleChunk', {
+                        method: 'POST',
+                        headers: { 'RequestVerificationToken': token },
+                        body: formData
+                    });
+
+                    const res = await response.json();
+                    if (res.success) {
+                        successCount++;
+                        statusBadge.className = 'badge bg-success';
+                        statusBadge.innerHTML = '<i class="bi bi-check2"></i> Gotowe';
+                    } else {
+                        skippedCount++;
+                        statusBadge.className = 'badge bg-danger';
+                        statusBadge.title = res.message;
+                        statusBadge.innerHTML = '<i class="bi bi-x-circle"></i> Pominięto';
+                    }
+                } catch (e) {
+                    skippedCount++;
+                    statusBadge.className = 'badge bg-danger';
+                    statusBadge.innerText = 'Błąd sieci';
+                }
+            }
+
+            uploadProgressBar.style.width = '100%';
+            percentText.innerText = '100%';
+            statusText.innerText = 'Aktualizacja wykresu formy (CTL / ATL / TSB)...';
+
+            await fetch('/Activity/FinishBulkUpload', {
+                method: 'POST',
+                headers: { 'RequestVerificationToken': token }
+            });
+
+            progressSection.style.display = 'none';
+            startUploadBtn.style.display = 'none';
+            dashboardReturnBtn.style.display = 'block';
+
+            let alertType = skippedCount > 0 && successCount > 0 ? 'alert-warning' : (successCount > 0 ? 'alert-success' : 'alert-danger');
+            resultBox.innerHTML = `
+                <div class="alert ${alertType} border-0 shadow-sm p-3">
+                    <h6 class="fw-bold mb-1">Import zakończony!</h6>
+                    <small>Zaimportowano poprawnie: <strong>${successCount}</strong>, pominięto: <strong>${skippedCount}</strong>.</small>
+                </div>
+            `;
+            resultBox.style.display = 'block';
+        });
+    </script>
+}

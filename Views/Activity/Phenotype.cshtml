@@ -1,0 +1,92 @@
+﻿@model inzynierka.Models.ViewModels.PhenotypeViewModel
+@{
+    ViewData["Title"] = "Profil Zawodnika (Power Profiling)";
+}
+
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-body p-4 text-center">
+                    <span class="badge bg-@Model.BadgeColor fs-6 px-3 py-2 mb-2">@Model.PhenotypeName</span>
+                    <h2 class="fw-bold mb-2">Profil Kolarski wg Coggana</h2>
+                    <p class="text-muted mx-auto mb-0" style="max-width: 600px;">
+                        @Model.Description
+                    </p>
+                </div>
+            </div>
+
+            <div class="row g-4 mb-4">
+                <div class="col-md-3 col-6">
+                    <div class="card border-0 shadow-sm text-center p-3">
+                        <small class="text-muted fw-bold">5s (Neuromuskularna)</small>
+                        <h3 class="fw-bold text-dark mt-2 mb-0">@Model.Peak5sWkg <small class="fs-6 text-muted">W/kg</small></h3>
+                    </div>
+                </div>
+                <div class="col-md-3 col-6">
+                    <div class="card border-0 shadow-sm text-center p-3">
+                        <small class="text-muted fw-bold">1 min (Beztlenowa)</small>
+                        <h3 class="fw-bold text-dark mt-2 mb-0">@Model.Peak1mWkg <small class="fs-6 text-muted">W/kg</small></h3>
+                    </div>
+                </div>
+                <div class="col-md-3 col-6">
+                    <div class="card border-0 shadow-sm text-center p-3">
+                        <small class="text-muted fw-bold">5 min (VO2max)</small>
+                        <h3 class="fw-bold text-dark mt-2 mb-0">@Model.Peak5mWkg <small class="fs-6 text-muted">W/kg</small></h3>
+                    </div>
+                </div>
+                <div class="col-md-3 col-6">
+                    <div class="card border-0 shadow-sm text-center p-3">
+                        <small class="text-muted fw-bold">FTP (Próg)</small>
+                        <h3 class="fw-bold text-dark mt-2 mb-0">@Model.FtpWkg <small class="fs-6 text-muted">W/kg</small></h3>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card border-0 shadow-sm p-4 text-center">
+                <h5 class="fw-bold mb-3">Wykres Radarowy Fenotypu</h5>
+                <div style="max-height: 380px;" class="d-flex justify-content-center">
+                    <canvas id="phenotypeRadarChart" style="max-width: 450px;"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        const ctx = document.getElementById('phenotypeRadarChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'radar',
+            data: {
+                labels: ['Sprint (5s)', 'Beztlenowa (1m)', 'VO2max (5m)', 'Próg FTP (~60m)'],
+                datasets: [{
+                    label: 'Poziom w skali Coggana (1-5)',
+                    data: [@Model.SprintScore, @Model.AnaerobicScore, @Model.Vo2MaxScore, @Model.ThresholdScore],
+                    fill: true,
+                    backgroundColor: 'rgba(14, 165, 233, 0.25)',
+                    borderColor: 'rgb(14, 165, 233)',
+                    pointBackgroundColor: 'rgb(14, 165, 233)',
+                    pointBorderColor: '#fff',
+                    pointHoverBackgroundColor: '#fff',
+                    pointHoverBorderColor: 'rgb(14, 165, 233)'
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    r: {
+                        angleLines: { display: true },
+                        suggestedMin: 0,
+                        suggestedMax: 5,
+                        ticks: { stepSize: 1, display: false }
+                    }
+                },
+                plugins: {
+                    legend: { display: false }
+                }
+            }
+        });
+    </script>
+}

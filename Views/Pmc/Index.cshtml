@@ -1,0 +1,197 @@
+﻿@{
+    ViewData["Title"] = "Wykres Formy (PMC)";
+}
+
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2>Zarządzanie Formą (PMC - Banister / Coggan)</h2>
+        <div class="btn-group">
+            <button type="button" class="btn btn-outline-secondary" onclick="loadPmc(30)">30 dni</button>
+            <button type="button" class="btn btn-outline-secondary active" id="btn90" onclick="loadPmc(90)">90 dni</button>
+            <button type="button" class="btn btn-outline-secondary" onclick="loadPmc(180)">Pół roku</button>
+            <button type="button" class="btn btn-outline-secondary" onclick="loadPmc(365)">Rok</button>
+        </div>
+    </div>
+
+    <!-- Pasek wskaźników stanu na dzień dzisiejszy -->
+    <div class="row g-3 mb-4" id="currentStatsRow">
+        <div class="col-md-3">
+            <div class="card text-center bg-light p-3">
+                <div class="text-muted">CTL (Fitness / Forma)</div>
+                <h3 class="text-primary mt-1" id="statCtl">-</h3>
+                <small class="text-muted">Stała czasowa 42 dni</small>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center bg-light p-3">
+                <div class="text-muted">ATL (Fatigue / Zmęczenie)</div>
+                <h3 class="text-danger mt-1" id="statAtl">-</h3>
+                <small class="text-muted">Stała czasowa 7 dni</small>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center bg-light p-3">
+                <div class="text-muted">TSB (Form / Świeżość)</div>
+                <h3 class="mt-1" id="statTsb">-</h3>
+                <small id="statTsbStatus" class="fw-bold">-</small>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center bg-light p-3">
+                <div class="text-muted">Wymuszenie przeliczenia</div>
+                <button class="btn btn-sm btn-outline-dark mt-2" onclick="recalculatePmc()">Przelicz historię</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Wykres PMC -->
+    <div class="card">
+        <div class="card-header bg-dark text-white d-flex justify-content-between">
+            <span>Wykres obciążenia i świeżości</span>
+            <small class="text-muted">Niebieski: CTL | Czerwony: ATL | Zielony/Żółty: TSB | Słupki: TSS</small>
+        </div>
+        <div class="card-body">
+            <div style="position: relative; height: 420px; width: 100%;">
+                <canvas id="pmcChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <script>
+        let pmcChartInstance = null;
+
+        async function loadPmc(days = 90) {
+            const response = await fetch(`/Pmc/GetData?days=${days}`);
+            if (!response.ok) return;
+
+            const data = await response.json();
+            if (data.length === 0) return;
+
+            // Aktualizacja kafelków na bazie ostatniego dnia
+            const last = data[data.length - 1];
+            document.getElementById('statCtl').innerText = last.ctl;
+            document.getElementById('statAtl').innerText = last.atl;
+
+            const tsbEl = document.getElementById('statTsb');
+            const tsbStatusEl = document.getElementById('statTsbStatus');
+            tsbEl.innerText = (last.tsb > 0 ? "+" : "") + last.tsb;
+
+            if (last.tsb > 15) {
+                tsbEl.className = "text-secondary mt-1";
+                tsbStatusEl.innerText = "Roztrenowanie / Duża świeżość";
+                tsbStatusEl.className = "text-secondary fw-bold";
+            } else if (last.tsb >= -10 && last.tsb <= 15) {
+                tsbEl.className = "text-success mt-1";
+                tsbStatusEl.innerText = "Optymalna strefa wyścigowa";
+                tsbStatusEl.className = "text-success fw-bold";
+            } else if (last.tsb >= -30 && last.tsb < -10) {
+                tsbEl.className = "text-warning mt-1";
+                tsbStatusEl.innerText = "Produktywny blok treningowy";
+                tsbStatusEl.className = "text-warning fw-bold";
+            } else {
+                tsbEl.className = "text-danger mt-1";
+                tsbStatusEl.innerText = "Ryzyko przeciążenia / Przetrenowanie";
+                tsbStatusEl.className = "text-danger fw-bold";
+            }
+
+            const labels = data.map(d => d.date);
+            const tssValues = data.map(d => d.tss > 0 ? d.tss : null);
+            const ctlValues = data.map(d => d.ctl);
+            const atlValues = data.map(d => d.atl);
+            const tsbValues = data.map(d => d.tsb);
+
+            const ctx = document.getElementById('pmcChart').getContext('2d');
+
+            if (pmcChartInstance) {
+                pmcChartInstance.destroy();
+            }
+
+            pmcChartInstance = new Chart(ctx, {
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            type: 'bar',
+                            label: 'TSS (Dzienny stres)',
+                            data: tssValues,
+                            backgroundColor: 'rgba(158, 158, 158, 0.4)',
+                            barPercentage: 0.5,
+                            yAxisID: 'yTss'
+                        },
+                        {
+                            type: 'line',
+                            label: 'CTL (Fitness - 42d)',
+                            data: ctlValues,
+                            borderColor: '#1e88e5',
+                            borderWidth: 2.5,
+                            pointRadius: 0,
+                            tension: 0.2,
+                            yAxisID: 'yMetrics'
+                        },
+                        {
+                            type: 'line',
+                            label: 'ATL (Fatigue - 7d)',
+                            data: atlValues,
+                            borderColor: '#e53935',
+                            borderWidth: 2,
+                            pointRadius: 0,
+                            tension: 0.2,
+                            yAxisID: 'yMetrics'
+                        },
+                        {
+                            type: 'line',
+                            label: 'TSB (Form / Świeżość)',
+                            data: tsbValues,
+                            borderColor: '#43a047',
+                            backgroundColor: 'rgba(67, 160, 71, 0.1)',
+                            fill: true,
+                            borderWidth: 1.5,
+                            pointRadius: 0,
+                            tension: 0.2,
+                            yAxisID: 'yMetrics'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false
+                    },
+                    scales: {
+                        x: {
+                            ticks: { maxTicksLimit: 14 },
+                            grid: { display: false }
+                        },
+                        yMetrics: {
+                            type: 'linear',
+                            position: 'left',
+                            title: { display: true, text: 'CTL / ATL / TSB' }
+                        },
+                        yTss: {
+                            type: 'linear',
+                            position: 'right',
+                            title: { display: true, text: 'TSS' },
+                            beginAtZero: true,
+                            grid: { drawOnChartArea: false }
+                        }
+                    }
+                }
+            });
+        }
+
+        async function recalculatePmc() {
+            await fetch('/Pmc/Recalculate', { method: 'POST' });
+            loadPmc(90);
+        }
+
+        document.addEventListener("DOMContentLoaded", () => {
+            loadPmc(90);
+        });
+    </script>
+}
