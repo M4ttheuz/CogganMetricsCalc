@@ -32,13 +32,14 @@ public class FitParserService : IFitParserService
         int? sessionAvgHr = null;
         int? sessionMaxHr = null;
         var detectedSport = SportType.Road;
+        bool isCyclingSession = false;
+        string rawSportName = "Nieznany";
 
         using var decodeStream = new MemoryStream(fileBytes);
         var decode = new Decode();
         var mesgBroadcaster = new MesgBroadcaster();
         decode.MesgEvent += mesgBroadcaster.OnMesg;
 
-        // 1. Obsługa 1-sekundowych rekordów (RecordMesg)
         mesgBroadcaster.RecordMesgEvent += (sender, e) =>
         {
             var recordMesg = new RecordMesg(e.mesg);
@@ -82,7 +83,6 @@ public class FitParserService : IFitParserService
             records.Add(record);
         };
 
-        // 2. Obsługa podsumowania sesji (SessionMesg)
         mesgBroadcaster.SessionMesgEvent += (sender, e) =>
         {
             var sessionMesg = new SessionMesg(e.mesg);
@@ -114,19 +114,33 @@ public class FitParserService : IFitParserService
             var fitSport = sessionMesg.GetSport();
             var fitSubSport = sessionMesg.GetSubSport();
 
+            rawSportName = fitSport.ToString();
+
             if (fitSport == Sport.Cycling)
             {
+                isCyclingSession = true;
                 detectedSport = fitSubSport switch
                 {
                     SubSport.Mountain => SportType.Mtb,
+                    SubSport.GravelCycling => SportType.Gravel,
                     SubSport.IndoorCycling => SportType.Trainer,
                     _ => SportType.Road
                 };
             }
         };
 
-        // 3. Sprawdzenie integralności pliku i odczyt danych
         decode.Read(decodeStream);
+
+        if (!isCyclingSession && records.Any(r => r.Power.HasValue && r.Power.Value > 0))
+        {
+            isCyclingSession = true;
+            detectedSport = SportType.Road;
+        }
+
+        if (!isCyclingSession)
+        {
+            throw new InvalidOperationException($"Plik nie zawiera aktywności kolarskiej (wykryto: {rawSportName}). Aplikacja obsługuje wyłącznie sesje rowerowe.");
+        }
 
         if (records.Count > 0)
         {

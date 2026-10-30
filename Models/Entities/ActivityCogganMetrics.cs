@@ -15,7 +15,6 @@ public class ActivityCogganMetrics
     public int? MaxPower { get; set; }
     public int? AvgHeartRate { get; set; }
     public int? MaxHeartRate { get; set; }
-    public decimal? Decoupling { get; set; }
 
     public Activity Activity { get; set; } = null!;
 }

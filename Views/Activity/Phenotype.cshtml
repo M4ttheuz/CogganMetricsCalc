@@ -1,6 +1,6 @@
 ﻿@model inzynierka.Models.ViewModels.PhenotypeViewModel
 @{
-    ViewData["Title"] = "Profil Zawodnika (Power Profiling)";
+    ViewData["Title"] = "Fenotyp zawodnika";
 }
 
 <div class="container py-4">
@@ -9,8 +9,8 @@
             <div class="card border-0 shadow-sm mb-4">
                 <div class="card-body p-4 text-center">
                     <span class="badge bg-@Model.BadgeColor fs-6 px-3 py-2 mb-2">@Model.PhenotypeName</span>
-                    <h2 class="fw-bold mb-2">Profil Kolarski wg Coggana</h2>
-                    <p class="text-muted mx-auto mb-0" style="max-width: 600px;">
+                    <h2 class="fw-bold mb-2">Fenotyp zawodnika</h2>
+                    <p class="text-muted mx-auto mb-0 phenotype-description">
                         @Model.Description
                     </p>
                 </div>
@@ -45,8 +45,8 @@
 
             <div class="card border-0 shadow-sm p-4 text-center">
                 <h5 class="fw-bold mb-3">Wykres Radarowy Fenotypu</h5>
-                <div style="max-height: 380px;" class="d-flex justify-content-center">
-                    <canvas id="phenotypeRadarChart" style="max-width: 450px;"></canvas>
+                <div class="d-flex justify-content-center phenotype-chart-container">
+                    <canvas id="phenotypeRadarChart" class="phenotype-chart"></canvas>
                 </div>
             </div>
         </div>

@@ -8,7 +8,6 @@ public class PmcService : IPmcService
 {
     private readonly AppDbContext _context;
 
-    // Stałe czasowe Coggana (tau): 42 dni dla formy (fitness), 7 dni dla zmęczenia (fatigue)
     private const double CtlTimeConstant = 42.0;
     private const double AtlTimeConstant = 7.0;
 
@@ -19,7 +18,6 @@ public class PmcService : IPmcService
 
     public async Task RecalculatePmcAsync(int userId)
     {
-        // 1. Pobieramy wszystkie aktywności użytkownika mające datę i policzony TSS
         var activities = await _context.Activities
             .Where(a => a.UserId == userId && a.CogganMetrics != null && a.CogganMetrics.TrainingStressScore != null)
             .Select(a => new
@@ -29,9 +27,17 @@ public class PmcService : IPmcService
             })
             .ToListAsync();
 
-        if (!activities.Any()) return;
+        var existingMetrics = await _context.DailyMetrics
+            .Where(d => d.UserId == userId)
+            .ToListAsync();
+        _context.DailyMetrics.RemoveRange(existingMetrics);
 
-        // Sumujemy TSS per dzień (gdy było kilka treningów jednego dnia)
+        if (!activities.Any())
+        {
+            await _context.SaveChangesAsync();
+            return;
+        }
+
         var dailyTssMap = activities
             .GroupBy(a => a.Date)
             .ToDictionary(g => g.Key, g => g.Sum(x => x.Tss));
@@ -39,13 +45,6 @@ public class PmcService : IPmcService
         var startDate = activities.Min(a => a.Date);
         var endDate = DateOnly.FromDateTime(DateTime.UtcNow);
 
-        // 2. Czyścimy stare rekordy PMC dla tego usera
-        var existingMetrics = await _context.DailyMetrics
-            .Where(d => d.UserId == userId)
-            .ToListAsync();
-        _context.DailyMetrics.RemoveRange(existingMetrics);
-
-        // 3. Pętla dzień po dniu z modelem EWMA
         double currentCtl = 0.0;
         double currentAtl = 0.0;
 

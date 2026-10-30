@@ -105,3 +105,160 @@ body {
 .navbar-nav .nav-link:hover {
     background-color: rgba(255, 255, 255, 0.1);
 }
+
+#activityMap {
+    height: 380px;
+    width: 100%;
+    border-radius: 8px;
+}
+
+.current-marker-dot {
+    background-color: #ff1744;
+    border: 2px solid #ffffff;
+    border-radius: 50%;
+    box-shadow: 0 0 10px rgba(255, 23, 68, 0.8);
+    transition: all 0.05s ease-out;
+}
+
+.metric-tile {
+    background: #ffffff;
+    border-radius: 10px;
+    padding: 1.1rem;
+    height: 100%;
+    border-left: 4px solid #cbd5e1;
+}
+
+    .metric-tile.np-tile {
+        border-left-color: #0284c7;
+    }
+
+    .metric-tile.tss-tile {
+        border-left-color: #ef4444;
+    }
+
+    .metric-tile.if-tile {
+        border-left-color: #f59e0b;
+    }
+
+    .metric-tile.work-tile {
+        border-left-color: #10b981;
+    }
+
+.metric-label {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    font-weight: 600;
+    color: #64748b;
+    letter-spacing: 0.5px;
+}
+
+.metric-val {
+    font-size: 1.85rem;
+    font-weight: 700;
+    line-height: 1.2;
+    margin: 0.35rem 0;
+}
+
+.metric-sub {
+    font-size: 0.825rem;
+    color: #64748b;
+}
+
+.peak-pill {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 0.6rem 0.4rem;
+    text-align: center;
+}
+
+.auth-icon {
+    font-size: 2.5rem;
+}
+
+.chart-container {
+    position: relative;
+    width: 100%;
+}
+
+.chart-container--short {
+    height: 280px;
+}
+
+.chart-container--telemetry {
+    height: 360px;
+}
+
+.chart-container--pmc {
+    height: 430px;
+}
+
+.phenotype-description {
+    max-width: 600px;
+}
+
+.phenotype-chart-container {
+    max-height: 380px;
+}
+
+.phenotype-chart {
+    max-width: 450px;
+}
+
+.peak-watts-per-kg-unit {
+    font-size: 0.75rem;
+}
+
+.activity-metric-badge {
+    min-width: 50px;
+}
+
+.activity-metric-badge--np {
+    min-width: 55px;
+}
+
+.activity-metric-label {
+    font-size: 0.65rem;
+}
+
+.upload-drop-zone {
+    border-color: #cbd5e1 !important;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.upload-drop-zone.is-dragging {
+    background-color: #e2e8f0 !important;
+    border-color: #0284c7 !important;
+}
+
+.upload-drop-zone.is-disabled {
+    pointer-events: none;
+    opacity: 0.5;
+}
+
+.upload-file-list {
+    max-height: 220px;
+    overflow-y: auto;
+}
+
+.upload-progress {
+    height: 12px;
+    border-radius: 6px;
+}
+
+.upload-progress-bar {
+    width: 0;
+}
+
+.upload-file-name {
+    max-width: 70%;
+}
+
+.upload-file-status {
+    font-size: 0.75rem;
+}
+
+.is-hidden {
+    display: none !important;
+}

@@ -17,8 +17,9 @@ public class PmcController : Controller
     }
 
     [HttpGet]
-    public IActionResult Index()
+    public async Task<IActionResult> Index()
     {
+        await _pmcService.RecalculatePmcAsync(CurrentUserId);
         return View();
     }
 

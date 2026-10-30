@@ -20,8 +20,7 @@
                     <p class="text-muted small">Przeciągnij lub wskaż pliki <code>.fit</code> ze swojego licznika lub trenażera</p>
                 </div>
 
-                <div id="dropZone" class="border border-2 border-dashed rounded p-5 text-center bg-light mb-4" 
-                     style="border-color: #cbd5e1 !important; cursor: pointer; transition: all 0.2s;">
+                <div id="dropZone" class="upload-drop-zone border border-2 border-dashed rounded p-5 text-center bg-light mb-4">
                     <i class="bi bi-file-earmark-arrow-up fs-1 text-muted"></i>
                     <h6 class="fw-bold mt-3 mb-1">Przeciągnij pliki tutaj</h6>
                     <p class="text-muted small mb-3">lub kliknij, aby wybrać z dysku (możesz zaznaczyć wiele)</p>
@@ -31,33 +30,33 @@
                     <input type="file" id="fileInput" multiple accept=".fit" class="d-none" />
                 </div>
 
-                <div id="fileListCard" class="card bg-light border-0 mb-4" style="display: none;">
+                <div id="fileListCard" class="card bg-light border-0 mb-4 is-hidden">
                     <div class="card-body p-3">
                         <div class="d-flex justify-content-between align-items-center mb-2">
                             <span class="fw-semibold small text-dark"><i class="bi bi-list-check me-1"></i> Wybrane pliki (<span id="fileCount">0</span>)</span>
                             <button type="button" class="btn btn-link btn-sm text-danger text-decoration-none p-0" id="clearFilesBtn">Wyczyść listę</button>
                         </div>
-                        <ul class="list-group list-group-flush small" id="fileList" style="max-height: 220px; overflow-y: auto;"></ul>
+                        <ul class="list-group list-group-flush small upload-file-list" id="fileList"></ul>
                     </div>
                 </div>
 
-                <div id="progressSection" style="display: none;" class="mb-4">
+                <div id="progressSection" class="mb-4 is-hidden">
                     <div class="d-flex justify-content-between small text-muted mb-1">
                         <span id="statusText">Przygotowywanie importu...</span>
                         <span id="percentText" class="fw-bold text-dark">0%</span>
                     </div>
-                    <div class="progress" style="height: 12px; border-radius: 6px;">
-                        <div id="uploadProgressBar" class="progress-bar progress-bar-striped progress-bar-animated bg-primary" role="progressbar" style="width: 0%"></div>
+                    <div class="progress upload-progress">
+                        <div id="uploadProgressBar" class="progress-bar progress-bar-striped progress-bar-animated bg-primary upload-progress-bar" role="progressbar"></div>
                     </div>
                 </div>
 
-                <div id="resultBox" style="display: none;" class="mb-4"></div>
+                <div id="resultBox" class="mb-4 is-hidden"></div>
 
                 <div class="d-grid gap-2">
                     <button type="button" id="startUploadBtn" class="btn btn-primary py-2 fw-semibold" disabled>
                         <i class="bi bi-cpu me-1"></i> Rozpocznij import danych
                     </button>
-                    <a asp-action="Index" id="dashboardReturnBtn" class="btn btn-outline-dark py-2 fw-semibold" style="display: none;">
+                    <a asp-action="Index" id="dashboardReturnBtn" class="btn btn-outline-dark py-2 fw-semibold is-hidden">
                         Przejdź do pulpitu aktywności &rarr;
                     </a>
                 </div>
@@ -87,21 +86,20 @@
         const resultBox = document.getElementById('resultBox');
         const dashboardReturnBtn = document.getElementById('dashboardReturnBtn');
 
+        const maxFileSizeBytes = 50 * 1024 * 1024;
         let selectedFiles = [];
 
         ['dragenter', 'dragover'].forEach(name => {
             dropZone.addEventListener(name, (e) => {
                 e.preventDefault();
-                dropZone.style.backgroundColor = '#e2e8f0';
-                dropZone.style.borderColor = '#0284c7';
+                dropZone.classList.add('is-dragging');
             });
         });
 
         ['dragleave', 'drop'].forEach(name => {
             dropZone.addEventListener(name, (e) => {
                 e.preventDefault();
-                dropZone.style.backgroundColor = '#f8fafc';
-                dropZone.style.borderColor = '#cbd5e1';
+                dropZone.classList.remove('is-dragging');
             });
         });
 
@@ -116,19 +114,26 @@
         });
 
         function addFiles(files) {
-            selectedFiles = [...selectedFiles, ...files];
+            const acceptedFiles = files.filter(file => file.size <= maxFileSizeBytes);
+            const oversizedCount = files.length - acceptedFiles.length;
+            selectedFiles = [...selectedFiles, ...acceptedFiles];
             renderFileList();
+
+            if (oversizedCount > 0) {
+                resultBox.innerHTML = `<div class="alert alert-warning border-0 shadow-sm p-3">Pominięto ${oversizedCount} plików większych niż 50 MiB.</div>`;
+                resultBox.classList.remove('is-hidden');
+            }
         }
 
         function renderFileList() {
             fileList.innerHTML = '';
             if (selectedFiles.length === 0) {
-                fileListCard.style.display = 'none';
+                fileListCard.classList.add('is-hidden');
                 startUploadBtn.disabled = true;
                 return;
             }
 
-            fileListCard.style.display = 'block';
+            fileListCard.classList.remove('is-hidden');
             startUploadBtn.disabled = false;
             fileCount.innerText = selectedFiles.length;
 
@@ -138,15 +143,15 @@
                 li.className = 'list-group-item d-flex justify-content-between align-items-center bg-white px-2 py-1 mb-1 rounded border';
                 const sizeKb = (file.size / 1024).toFixed(0);
                 li.innerHTML = `
-                    <span class="text-truncate" style="max-width: 70%;">
+                    <span class="text-truncate upload-file-name">
                         <i class="bi bi-file-earmark me-1 text-primary"></i>${file.name}
                     </span>
-                    <span class="badge bg-light text-muted border file-status" style="font-size: 0.75rem;">Oczekuje</span>
+                    <span class="badge bg-light text-muted border file-status upload-file-status">Oczekuje</span>
                 `;
                 fileList.appendChild(li);
             });
 
-            clearFilesBtn.style.display = selectedFiles.length ? 'inline-block' : 'none';
+            clearFilesBtn.classList.toggle('is-hidden', selectedFiles.length === 0);
         }
 
         clearFilesBtn.addEventListener('click', () => {
@@ -159,11 +164,10 @@
             if (selectedFiles.length === 0) return;
 
             startUploadBtn.disabled = true;
-            dropZone.style.pointerEvents = 'none';
-            dropZone.style.opacity = '0.5';
-            clearFilesBtn.style.display = 'none';
-            progressSection.style.display = 'block';
-            resultBox.style.display = 'none';
+            dropZone.classList.add('is-disabled');
+            clearFilesBtn.classList.add('is-hidden');
+            progressSection.classList.remove('is-hidden');
+            resultBox.classList.add('is-hidden');
 
             const token = document.querySelector('#antiForgeryForm input[name="__RequestVerificationToken"]').value;
             const total = selectedFiles.length;
@@ -175,7 +179,7 @@
                 const itemElem = document.getElementById(`file-item-${i}`);
                 const statusBadge = itemElem.querySelector('.file-status');
 
-                statusBadge.className = 'badge bg-primary';
+                statusBadge.className = 'badge bg-primary upload-file-status';
                 statusBadge.innerText = 'Przetwarzanie...';
 
                 statusText.innerText = `Przetwarzanie: ${file.name} (${i + 1}/${total})`;
@@ -196,17 +200,17 @@
                     const res = await response.json();
                     if (res.success) {
                         successCount++;
-                        statusBadge.className = 'badge bg-success';
+                        statusBadge.className = 'badge bg-success upload-file-status';
                         statusBadge.innerHTML = '<i class="bi bi-check2"></i> Gotowe';
                     } else {
                         skippedCount++;
-                        statusBadge.className = 'badge bg-danger';
+                        statusBadge.className = 'badge bg-danger upload-file-status';
                         statusBadge.title = res.message;
                         statusBadge.innerHTML = '<i class="bi bi-x-circle"></i> Pominięto';
                     }
                 } catch (e) {
                     skippedCount++;
-                    statusBadge.className = 'badge bg-danger';
+                    statusBadge.className = 'badge bg-danger upload-file-status';
                     statusBadge.innerText = 'Błąd sieci';
                 }
             }
@@ -220,9 +224,9 @@
                 headers: { 'RequestVerificationToken': token }
             });
 
-            progressSection.style.display = 'none';
-            startUploadBtn.style.display = 'none';
-            dashboardReturnBtn.style.display = 'block';
+            progressSection.classList.add('is-hidden');
+            startUploadBtn.classList.add('is-hidden');
+            dashboardReturnBtn.classList.remove('is-hidden');
 
             let alertType = skippedCount > 0 && successCount > 0 ? 'alert-warning' : (successCount > 0 ? 'alert-success' : 'alert-danger');
             resultBox.innerHTML = `
@@ -231,7 +235,7 @@
                     <small>Zaimportowano poprawnie: <strong>${successCount}</strong>, pominięto: <strong>${skippedCount}</strong>.</small>
                 </div>
             `;
-            resultBox.style.display = 'block';
+            resultBox.classList.remove('is-hidden');
         });
     </script>
 }

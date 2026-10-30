@@ -1,11 +1,11 @@
-﻿using inzynierka.Data;
+﻿using System.Security.Claims;
+using inzynierka.Data;
+using inzynierka.Models.Entities;
 using inzynierka.Models.ViewModels;
 using inzynierka.Services;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using System.Security.Claims;
 
 namespace inzynierka.Controllers;
 
@@ -23,22 +23,32 @@ public class ActivityController : Controller
 
     private readonly IActivityService _activityService;
     private readonly AppDbContext _context;
+    private readonly IPmcService _pmcService;
 
-    public ActivityController(IActivityService activityService, AppDbContext context)
+    public ActivityController(
+        IActivityService activityService,
+        AppDbContext context,
+        IPmcService pmcService)
     {
         _activityService = activityService;
         _context = context;
+        _pmcService = pmcService;
     }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [RequestFormLimits(MultipartBodyLengthLimit = 524288000)] // 500 MB
+    [RequestFormLimits(MultipartBodyLengthLimit = 524288000)]
     [RequestSizeLimit(524288000)]
     public async Task<IActionResult> UploadBackground([FromForm] List<IFormFile> files)
     {
         if (files == null || files.Count == 0)
         {
             return Json(new { success = false, message = "Brak plików." });
+        }
+
+        if (files.Any(file => file.Length > FitUploadLimits.MaxFileSizeBytes))
+        {
+            return Json(new { success = false, message = "Każdy plik FIT może mieć maksymalnie 50 MiB." });
         }
 
         var streams = files.Select(f => (fileStream: f.OpenReadStream(), fileName: f.FileName)).ToList();
@@ -60,8 +70,6 @@ public class ActivityController : Controller
         }
     }
 
-    // GetUploadJobStatus removed - no job tracking
-
     [HttpGet]
     public async Task<IActionResult> Index()
     {
@@ -78,7 +86,7 @@ public class ActivityController : Controller
         string formStatus;
         string badgeClass;
 
-        if (tsb > 15) { formStatus = "Świeżość / Roztrenowanie"; badgeClass = "bg-secondary"; }
+        if (tsb > 15) { formStatus = "Świeżość / roztrenowanie"; badgeClass = "bg-secondary"; }
         else if (tsb >= -10) { formStatus = "Optymalna strefa formy"; badgeClass = "bg-success"; }
         else if (tsb >= -30) { formStatus = "Produktywny blok"; badgeClass = "bg-warning text-dark"; }
         else { formStatus = "Ryzyko przeciążenia"; badgeClass = "bg-danger"; }
@@ -98,10 +106,22 @@ public class ActivityController : Controller
 
         var recent = await _context.Activities
             .AsNoTracking()
-            .Include(a => a.CogganMetrics)
             .Where(a => a.UserId == CurrentUserId)
             .OrderByDescending(a => a.StartTime)
             .Take(5)
+            .Select(a => new Activity
+            {
+                Id = a.Id,
+                UserId = a.UserId,
+                Title = a.Title,
+                SportType = a.SportType,
+                StartTime = a.StartTime,
+                DurationSeconds = a.DurationSeconds,
+                MovingTimeSeconds = a.MovingTimeSeconds,
+                DistanceMeters = a.DistanceMeters,
+                TotalElevationGain = a.TotalElevationGain,
+                CogganMetrics = a.CogganMetrics
+            })
             .ToListAsync();
 
         var user = await _context.Users
@@ -130,8 +150,6 @@ public class ActivityController : Controller
             RecentActivities = recent
         };
 
-        // Brak śledzenia zadań uploadu
-
         return View(vm);
     }
 
@@ -143,6 +161,8 @@ public class ActivityController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [RequestFormLimits(MultipartBodyLengthLimit = FitUploadLimits.MaxFileSizeBytes + 1024 * 1024)]
+    [RequestSizeLimit(FitUploadLimits.MaxFileSizeBytes + 1024 * 1024)]
     public async Task<IActionResult> UploadSingleChunk(IFormFile file)
     {
         if (file == null || file.Length == 0)
@@ -150,10 +170,15 @@ public class ActivityController : Controller
             return Json(new { success = false, message = "Pusty plik." });
         }
 
+        if (file.Length > FitUploadLimits.MaxFileSizeBytes)
+        {
+            return Json(new { success = false, message = "Plik FIT może mieć maksymalnie 50 MiB." });
+        }
+
         try
         {
             using var stream = file.OpenReadStream();
-            var activity = await _activityService.ProcessAndSaveFitFileAsync(stream, file.FileName, CurrentUserId);
+            var activity = await _activityService.ProcessAndSaveFitFileAsync(stream, file.FileName, CurrentUserId, recalculatePmc: false);
             return Json(new { success = true, title = activity.Title });
         }
         catch (Exception ex)
@@ -164,9 +189,9 @@ public class ActivityController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> FinishBulkUpload([FromServices] IPmcService pmcService)
+    public async Task<IActionResult> FinishBulkUpload()
     {
-        await pmcService.RecalculatePmcAsync(CurrentUserId);
+        await _pmcService.RecalculatePmcAsync(CurrentUserId);
         return Json(new { success = true });
     }
 
@@ -187,7 +212,9 @@ public class ActivityController : Controller
     {
         var activity = await _context.Activities
             .AsNoTracking()
-            .FirstOrDefaultAsync(a => a.Id == id && a.UserId == CurrentUserId);
+            .Where(a => a.Id == id && a.UserId == CurrentUserId)
+            .Select(a => new { a.UserId, a.StartTime, a.TelemetryBlob })
+            .FirstOrDefaultAsync();
 
         if (activity == null) return NotFound();
 
@@ -210,12 +237,8 @@ public class ActivityController : Controller
 
         if (ftp <= 0) ftp = 250;
 
-        var powerRecords = await _context.ActivityRecords
-            .AsNoTracking()
-            .Where(r => r.ActivityId == id)
-            .OrderBy(r => r.Timestamp)
-            .Select(r => r.Power)
-            .ToListAsync();
+        var records = TelemetryCompressor.Decompress(activity.TelemetryBlob);
+        var powerRecords = records.Select(r => r.Power).ToList();
 
         var result = cogganCalculator.CalculateZones(powerRecords, ftp);
         return Json(result);
@@ -224,28 +247,22 @@ public class ActivityController : Controller
     [HttpGet]
     public async Task<IActionResult> GetPowerCurve(int id, [FromServices] ICogganCalculator cogganCalculator)
     {
-        var exists = await _context.Activities
+        var blob = await _context.Activities
             .AsNoTracking()
-            .AnyAsync(a => a.Id == id && a.UserId == CurrentUserId);
+            .Where(a => a.Id == id && a.UserId == CurrentUserId)
+            .Select(a => a.TelemetryBlob)
+            .FirstOrDefaultAsync();
 
-        if (!exists) return NotFound();
+        if (blob == null || blob.Length == 0) return NotFound();
 
-        var rawPower = await _context.ActivityRecords
-            .AsNoTracking()
-            .Where(r => r.ActivityId == id)
-            .OrderBy(r => r.Timestamp)
-            .Select(r => r.Power)
-            .ToListAsync();
+        var records = TelemetryCompressor.Decompress(blob);
+        var rawPower = records.Select(r => r.Power).ToList();
 
-        if (!rawPower.Any()) return NotFound();
+        if (rawPower.Count == 0) return NotFound();
 
-        // Twoje wybrane interwały
         int[] durations = { 5, 15, 30, 60, 120, 300, 420, 600, 900, 1200, 1800, 2400, 3600 };
-
-        // Kalkulator liczy dokładnie dla tych sekund
         var curveValues = cogganCalculator.CalculateFullPowerCurve(rawPower);
 
-        // Tworzymy etykiety tylko dla tylu punktów, ile faktycznie udało się wyliczyć (jeśli trening trwał krócej)
         var labels = new List<string>();
         for (int i = 0; i < curveValues.Count; i++)
         {
@@ -259,54 +276,54 @@ public class ActivityController : Controller
     [HttpGet]
     public async Task<IActionResult> GetTelemetry(int id)
     {
-        var exists = await _context.Activities
+        var blob = await _context.Activities
             .AsNoTracking()
-            .AnyAsync(a => a.Id == id && a.UserId == CurrentUserId);
+            .Where(a => a.Id == id && a.UserId == CurrentUserId)
+            .Select(a => a.TelemetryBlob)
+            .FirstOrDefaultAsync();
 
-        if (!exists) return NotFound();
+        if (blob == null || blob.Length == 0) return NotFound();
 
-        var rawRecords = await _context.ActivityRecords
-            .AsNoTracking()
-            .Where(r => r.ActivityId == id)
-            .OrderBy(r => r.Timestamp)
-            .Select(r => new
-            {
-                r.Timestamp,
-                Power = r.Power ?? 0,
-                HeartRate = r.HeartRate ?? 0,
-                Altitude = r.AltitudeMeters ?? 0m,
-                Latitude = r.Latitude,
-                Longitude = r.Longitude
-            })
-            .ToListAsync();
-
-        if (!rawRecords.Any())
-        {
-            return NotFound();
-        }
+        var rawRecords = TelemetryCompressor.Decompress(blob);
+        if (rawRecords.Count == 0) return NotFound();
 
         var startTime = rawRecords[0].Timestamp;
+        int totalCount = rawRecords.Count;
+        int step = Math.Max(3, (int)Math.Ceiling(totalCount / 1200.0));
 
-        var sampledData = rawRecords
-            .Select((rec, index) => new { rec, bucket = index / 3 })
-            .GroupBy(x => x.bucket)
-            .Select(group =>
+        var sampledData = new List<object>((totalCount / step) + 2);
+
+        for (int i = 0; i < totalCount; i += step)
+        {
+            var item = rawRecords[i];
+            int elapsedSec = (int)(item.Timestamp - startTime).TotalSeconds;
+
+            sampledData.Add(new
             {
-                var firstItem = group.First().rec;
-                int elapsedSec = (int)(firstItem.Timestamp - startTime).TotalSeconds;
-                var gpsPoint = group.FirstOrDefault(x => x.rec.Latitude.HasValue && x.rec.Longitude.HasValue)?.rec;
+                Time = TimeSpan.FromSeconds(elapsedSec).ToString(@"hh\:mm\:ss"),
+                Power = item.Power ?? 0,
+                HeartRate = item.HeartRate ?? 0,
+                Altitude = (double)(item.AltitudeMeters ?? 0m),
+                Lat = item.Latitude,
+                Lng = item.Longitude
+            });
+        }
 
-                return new
-                {
-                    Time = TimeSpan.FromSeconds(elapsedSec).ToString(@"hh\:mm\:ss"),
-                    Power = (int)Math.Round(group.Average(x => x.rec.Power)),
-                    HeartRate = (int)Math.Round(group.Average(x => x.rec.HeartRate)),
-                    Altitude = Math.Round((double)group.Average(x => x.rec.Altitude), 1),
-                    Lat = gpsPoint?.Latitude,
-                    Lng = gpsPoint?.Longitude
-                };
-            })
-            .ToList();
+        if ((totalCount - 1) % step != 0)
+        {
+            var last = rawRecords[^1];
+            int elapsedSec = (int)(last.Timestamp - startTime).TotalSeconds;
+
+            sampledData.Add(new
+            {
+                Time = TimeSpan.FromSeconds(elapsedSec).ToString(@"hh\:mm\:ss"),
+                Power = last.Power ?? 0,
+                HeartRate = last.HeartRate ?? 0,
+                Altitude = (double)(last.AltitudeMeters ?? 0m),
+                Lat = last.Latitude,
+                Lng = last.Longitude
+            });
+        }
 
         return Json(sampledData);
     }
@@ -356,9 +373,21 @@ public class ActivityController : Controller
 
         var query = _context.Activities
             .AsNoTracking()
-            .Include(a => a.CogganMetrics)
             .Where(a => a.UserId == CurrentUserId)
-            .OrderByDescending(a => a.StartTime);
+            .OrderByDescending(a => a.StartTime)
+            .Select(a => new Activity
+            {
+                Id = a.Id,
+                UserId = a.UserId,
+                Title = a.Title,
+                SportType = a.SportType,
+                StartTime = a.StartTime,
+                DurationSeconds = a.DurationSeconds,
+                MovingTimeSeconds = a.MovingTimeSeconds,
+                DistanceMeters = a.DistanceMeters,
+                TotalElevationGain = a.TotalElevationGain,
+                CogganMetrics = a.CogganMetrics
+            });
 
         int totalItems = await query.CountAsync();
         var activities = await query
@@ -371,5 +400,42 @@ public class ActivityController : Controller
         ViewBag.TotalCount = totalItems;
 
         return View(activities);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Delete(int id)
+    {
+        var activity = await _context.Activities
+            .FirstOrDefaultAsync(a => a.Id == id && a.UserId == CurrentUserId);
+
+        if (activity == null)
+        {
+            return NotFound();
+        }
+
+        _context.Activities.Remove(activity);
+        await _context.SaveChangesAsync();
+
+        await _pmcService.RecalculatePmcAsync(CurrentUserId);
+
+        TempData["Success"] = "Trening został pomyślnie usunięty.";
+        return RedirectToAction(nameof(All));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeleteAll()
+    {
+        var userId = CurrentUserId;
+
+        await _context.Activities
+            .Where(a => a.UserId == userId)
+            .ExecuteDeleteAsync();
+
+        await _pmcService.RecalculatePmcAsync(userId);
+
+        TempData["SuccessMessage"] = "Wszystkie aktywności zostały pomyślnie usunięte.";
+        return RedirectToAction(nameof(All));
     }
 }

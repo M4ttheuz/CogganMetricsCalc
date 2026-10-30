@@ -55,7 +55,6 @@ public class AccountController : Controller
 
         user.PasswordHash = _passwordHasher.HashPassword(user, model.Password);
 
-        // Jawna transakcja gwarantuje spójność danych
         await using var transaction = await _context.Database.BeginTransactionAsync();
         try
         {

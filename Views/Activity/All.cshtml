@@ -12,10 +12,23 @@
             <h3 class="fw-bold text-dark mb-1">Historia treningów</h3>
             <p class="text-muted small mb-0">Łącznie zarejestrowano: <strong>@totalCount</strong> sesji</p>
         </div>
-        <a asp-action="Upload" class="btn btn-primary fw-semibold">
-            <i class="bi bi-plus-circle me-1"></i> Importuj pliki FIT
-        </a>
+        <div class="d-flex align-items-center gap-2">
+            @if (totalCount > 0)
+            {
+                <form asp-action="DeleteAll" method="post" class="d-inline" 
+                      onsubmit="return confirm('UWAGA: Czy na pewno chcesz bezpowrotnie usunąć WSZYSTKIE jednostki treningowe? Wykres formy zostanie zresetowany.');">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn btn-outline-danger fw-semibold">
+                        <i class="bi bi-trash3 me-1"></i> Usuń wszystko
+                    </button>
+                </form>
+            }
+            <a asp-action="Upload" class="btn btn-primary fw-semibold">
+                <i class="bi bi-plus-circle me-1"></i> Importuj pliki FIT
+            </a>
+        </div>
     </div>
+</div>
 
     @if (!Model.Any())
     {
@@ -38,7 +51,7 @@
                             <th>NP</th>
                             <th>IF</th>
                             <th>TSS</th>
-                            <th class="text-end">Szczegóły</th>
+                            <th class="text-end pe-3">Akcje</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -68,10 +81,16 @@
                                 <td class="fw-bold text-danger small">
                                     @(act.CogganMetrics?.TrainingStressScore?.ToString("F0") ?? "—")
                                 </td>
-                                <td class="text-end">
-                                    <a asp-action="Details" asp-route-id="@act.Id" class="btn btn-sm btn-outline-primary">
+                                <td class="text-end text-nowrap pe-3">
+                                    <a asp-action="Details" asp-route-id="@act.Id" class="btn btn-sm btn-outline-primary me-1" title="Szczegóły sesji">
                                         Otwórz &rarr;
                                     </a>
+                                    <form asp-action="Delete" asp-route-id="@act.Id" method="post" class="d-inline" onsubmit="return confirm('Czy na pewno chcesz usunąć tę sesję? Wszystkie powiązane metryki i wykresy PMC zostaną przeliczone.');">
+                                        @Html.AntiForgeryToken()
+                                        <button type="submit" class="btn btn-sm btn-outline-danger" title="Usuń trening">
+                                            <i class="bi bi-trash3"></i>
+                                        </button>
+                                    </form>
                                 </td>
                             </tr>
                         }
@@ -80,7 +99,6 @@
             </div>
         </div>
 
-        <!-- Paginacja -->
         @if (totalPages > 1)
         {
             <nav>
@@ -88,12 +106,6 @@
                     <li class="page-item @(currentPage == 1 ? "disabled" : "")">
                         <a class="page-link" asp-action="All" asp-route-page="@(currentPage - 1)">Poprzednia</a>
                     </li>
-                    @for (int i = 1; i <= totalPages; i++)
-                    {
-                        <li class="page-item @(i == currentPage ? "active" : "")">
-                            <a class="page-link" asp-action="All" asp-route-page="@i">@i</a>
-                        </li>
-                    }
                     <li class="page-item @(currentPage == totalPages ? "disabled" : "")">
                         <a class="page-link" asp-action="All" asp-route-page="@(currentPage + 1)">Następna</a>
                     </li>
