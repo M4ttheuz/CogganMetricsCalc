@@ -24,8 +24,13 @@ public class ActivityService : IActivityService
         _pmcService = pmcService;
     }
 
-    public async Task<Activity> ProcessAndSaveFitFileAsync(Stream fileStream, string fileName, int userId)
+    public async Task<Activity> ProcessAndSaveFitFileAsync(Stream fileStream, string fileName, int userId, bool recalculatePmc = true)
     {
+        if (fileStream.CanSeek && fileStream.Length > FitUploadLimits.MaxFileSizeBytes)
+        {
+            throw new InvalidOperationException("Plik FIT może mieć maksymalnie 50 MiB.");
+        }
+
         var parsedData = await _fitParser.ParseAsync(fileStream, fileName);
 
         var isDuplicate = await _context.Activities
@@ -89,7 +94,10 @@ public class ActivityService : IActivityService
 
         _context.Activities.Add(activity);
         await _context.SaveChangesAsync();
-        await _pmcService.RecalculatePmcAsync(userId);
+        if (recalculatePmc)
+        {
+            await _pmcService.RecalculatePmcAsync(userId);
+        }
 
         return activity;
     }
@@ -134,18 +142,19 @@ public class ActivityService : IActivityService
             .Select(a => a.FileHash)
             .ToHashSetAsync();
 
-        var validFiles = files
-            .Where(f => f.fileStream != null && f.fileStream.Length > 0 && f.fileName.EndsWith(".fit", StringComparison.OrdinalIgnoreCase))
+        var fileList = files.ToList();
+        var validFiles = fileList
+            .Where(f => f.fileStream != null && f.fileStream.Length > 0 && f.fileStream.Length <= FitUploadLimits.MaxFileSizeBytes && f.fileName.EndsWith(".fit", StringComparison.OrdinalIgnoreCase))
             .ToList();
 
-        skippedCount += (files.Count() - validFiles.Count);
+        skippedCount += fileList.Count - validFiles.Count;
 
         var parsedActivities = new ConcurrentBag<(Activity activity, string fileName)>();
         var batchHashes = new ConcurrentDictionary<string, byte>();
 
         var parallelOptions = new ParallelOptions
         {
-            MaxDegreeOfParallelism = Environment.ProcessorCount
+            MaxDegreeOfParallelism = FitUploadLimits.MaxParallelFiles
         };
 
         await Parallel.ForEachAsync(validFiles, parallelOptions, async (fileItem, cancellationToken) =>

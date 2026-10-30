@@ -4,7 +4,6 @@
 }
 
 <div class="container-fluid px-0">
-    <!-- Alerty -->
     @if (TempData["Success"] != null)
     {
         <div class="alert alert-success alert-dismissible fade show border-0 shadow-sm mb-4" role="alert">
@@ -176,16 +175,16 @@
                                         </div>
 
                                         <div class="d-flex align-items-center gap-2">
-                                            <div class="badge bg-light text-dark border p-2 text-center" style="min-width: 55px;">
-                                                <div class="text-muted" style="font-size: 0.65rem;">NP</div>
+                                            <div class="badge bg-light text-dark border p-2 text-center activity-metric-badge activity-metric-badge--np">
+                                                <div class="text-muted activity-metric-label">NP</div>
                                                 <div class="fw-bold text-primary">@(act.CogganMetrics?.NormalizedPower?.ToString() ?? "—") W</div>
                                             </div>
-                                            <div class="badge bg-light text-dark border p-2 text-center" style="min-width: 50px;">
-                                                <div class="text-muted" style="font-size: 0.65rem;">TSS</div>
+                                            <div class="badge bg-light text-dark border p-2 text-center activity-metric-badge">
+                                                <div class="text-muted activity-metric-label">TSS</div>
                                                 <div class="fw-bold text-danger">@(act.CogganMetrics?.TrainingStressScore?.ToString("F0") ?? "—")</div>
                                             </div>
-                                            <div class="badge bg-light text-dark border p-2 text-center" style="min-width: 50px;">
-                                                <div class="text-muted" style="font-size: 0.65rem;">IF</div>
+                                            <div class="badge bg-light text-dark border p-2 text-center activity-metric-badge">
+                                                <div class="text-muted activity-metric-label">IF</div>
                                                 <div class="fw-bold text-dark">@(act.CogganMetrics?.IntensityFactor?.ToString("F2") ?? "—")</div>
                                             </div>
                                             <a asp-action="Details" asp-route-id="@act.Id" class="btn btn-sm btn-light border ms-1">

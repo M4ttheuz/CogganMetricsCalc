@@ -147,7 +147,6 @@ public class ProfileController : Controller
             if (act.CogganMetrics?.NormalizedPower == null || act.CogganMetrics.NormalizedPower <= 0)
                 continue;
 
-            // Porównanie z uwzględnieniem samej daty (bez godzin)
             var effectiveFtp = ftpEntries
                 .FirstOrDefault(f => f.EffectiveDate.Date <= act.StartTime.Date)?.FtpValue ?? fallbackFtp;
 
@@ -156,7 +155,6 @@ public class ProfileController : Controller
             int np = act.CogganMetrics.NormalizedPower.Value;
             decimal ifFactor = Math.Round((decimal)np / effectiveFtp, 3);
 
-            // Spójne z ActivityService: czas w ruchu (Moving Time), a jeśli brak to łączny czas
             int durationSec = act.MovingTimeSeconds > 0 ? act.MovingTimeSeconds : act.DurationSeconds;
             decimal tss = (durationSec * np * ifFactor) / (effectiveFtp * 3600m) * 100m;
 

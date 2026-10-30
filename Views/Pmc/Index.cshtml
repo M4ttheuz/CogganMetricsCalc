@@ -1,57 +1,54 @@
 ﻿@{
-    ViewData["Title"] = "Wykres Formy (PMC)";
+    ViewData["Title"] = "Wykres formy i zmęczenia";
 }
 
 <div class="container mt-4">
     <div class="d-flex justify-content-between align-items-center mb-3">
-        <h2>Zarządzanie Formą (PMC - Banister / Coggan)</h2>
-        <div class="btn-group">
-            <button type="button" class="btn btn-outline-secondary" onclick="loadPmc(30)">30 dni</button>
-            <button type="button" class="btn btn-outline-secondary active" id="btn90" onclick="loadPmc(90)">90 dni</button>
-            <button type="button" class="btn btn-outline-secondary" onclick="loadPmc(180)">Pół roku</button>
-            <button type="button" class="btn btn-outline-secondary" onclick="loadPmc(365)">Rok</button>
+        <h2>Zarządzanie formą i obciążeniem</h2>
+        <div class="btn-group" id="pmcRangeButtons">
+            <button type="button" class="btn btn-outline-secondary" data-days="30" onclick="loadPmc(30)">30 dni</button>
+            <button type="button" class="btn btn-outline-secondary active" data-days="90" id="btn90" onclick="loadPmc(90)">90 dni</button>
+            <button type="button" class="btn btn-outline-secondary" data-days="180" onclick="loadPmc(180)">Pół roku</button>
+            <button type="button" class="btn btn-outline-secondary" data-days="365" onclick="loadPmc(365)">Rok</button>
         </div>
     </div>
 
-    <!-- Pasek wskaźników stanu na dzień dzisiejszy -->
     <div class="row g-3 mb-4" id="currentStatsRow">
         <div class="col-md-3">
-            <div class="card text-center bg-light p-3">
-                <div class="text-muted">CTL (Fitness / Forma)</div>
-                <h3 class="text-primary mt-1" id="statCtl">-</h3>
+            <div class="card text-center bg-light p-3 shadow-sm border-0">
+                <div class="text-muted small text-uppercase fw-semibold">Forma</div>
+                <h3 class="text-primary mt-1 mb-0" id="statCtl">-</h3>
                 <small class="text-muted">Stała czasowa 42 dni</small>
             </div>
         </div>
         <div class="col-md-3">
-            <div class="card text-center bg-light p-3">
-                <div class="text-muted">ATL (Fatigue / Zmęczenie)</div>
-                <h3 class="text-danger mt-1" id="statAtl">-</h3>
+            <div class="card text-center bg-light p-3 shadow-sm border-0">
+                <div class="text-muted small text-uppercase fw-semibold">Zmęczenie</div>
+                <h3 class="text-danger mt-1 mb-0" id="statAtl">-</h3>
                 <small class="text-muted">Stała czasowa 7 dni</small>
             </div>
         </div>
         <div class="col-md-3">
-            <div class="card text-center bg-light p-3">
-                <div class="text-muted">TSB (Form / Świeżość)</div>
-                <h3 class="mt-1" id="statTsb">-</h3>
+            <div class="card text-center bg-light p-3 shadow-sm border-0">
+                <div class="text-muted small text-uppercase fw-semibold">Świeżość</div>
+                <h3 class="mt-1 mb-0" id="statTsb">-</h3>
                 <small id="statTsbStatus" class="fw-bold">-</small>
             </div>
         </div>
         <div class="col-md-3">
-            <div class="card text-center bg-light p-3">
-                <div class="text-muted">Wymuszenie przeliczenia</div>
-                <button class="btn btn-sm btn-outline-dark mt-2" onclick="recalculatePmc()">Przelicz historię</button>
+            <div class="card text-center bg-light p-3 shadow-sm border-0">
+                <div class="text-muted small text-uppercase fw-semibold">Wymuszenie przeliczenia</div>
+                <button class="btn btn-sm btn-outline-dark mt-2" id="btnManualRecalc" onclick="recalculatePmc()">Przelicz historię</button>
             </div>
         </div>
     </div>
 
-    <!-- Wykres PMC -->
-    <div class="card">
-        <div class="card-header bg-dark text-white d-flex justify-content-between">
-            <span>Wykres obciążenia i świeżości</span>
-            <small class="text-muted">Niebieski: CTL | Czerwony: ATL | Zielony/Żółty: TSB | Słupki: TSS</small>
+    <div class="card shadow-sm border-0">
+        <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center py-2">
+            <span class="fw-semibold">Wykres zarządzania formą</span>
         </div>
         <div class="card-body">
-            <div style="position: relative; height: 420px; width: 100%;">
+            <div class="chart-container chart-container--pmc">
                 <canvas id="pmcChart"></canvas>
             </div>
         </div>
@@ -63,15 +60,28 @@
 
     <script>
         let pmcChartInstance = null;
+        let currentDays = 90;
+
+        function updateActiveButton(days) {
+            currentDays = days;
+            document.querySelectorAll('#pmcRangeButtons button').forEach(btn => {
+                if (parseInt(btn.dataset.days) === days) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+        }
 
         async function loadPmc(days = 90) {
+            updateActiveButton(days);
+
             const response = await fetch(`/Pmc/GetData?days=${days}`);
             if (!response.ok) return;
 
             const data = await response.json();
             if (data.length === 0) return;
 
-            // Aktualizacja kafelków na bazie ostatniego dnia
             const last = data[data.length - 1];
             document.getElementById('statCtl').innerText = last.ctl;
             document.getElementById('statAtl').innerText = last.atl;
@@ -81,20 +91,20 @@
             tsbEl.innerText = (last.tsb > 0 ? "+" : "") + last.tsb;
 
             if (last.tsb > 15) {
-                tsbEl.className = "text-secondary mt-1";
-                tsbStatusEl.innerText = "Roztrenowanie / Duża świeżość";
+                tsbEl.className = "text-secondary mt-1 mb-0";
+                tsbStatusEl.innerText = "Roztrenowanie / wysoka świeżość";
                 tsbStatusEl.className = "text-secondary fw-bold";
             } else if (last.tsb >= -10 && last.tsb <= 15) {
-                tsbEl.className = "text-success mt-1";
-                tsbStatusEl.innerText = "Optymalna strefa wyścigowa";
+                tsbEl.className = "text-success mt-1 mb-0";
+                tsbStatusEl.innerText = "Optymalna strefa startowa";
                 tsbStatusEl.className = "text-success fw-bold";
             } else if (last.tsb >= -30 && last.tsb < -10) {
-                tsbEl.className = "text-warning mt-1";
+                tsbEl.className = "text-warning mt-1 mb-0";
                 tsbStatusEl.innerText = "Produktywny blok treningowy";
                 tsbStatusEl.className = "text-warning fw-bold";
             } else {
-                tsbEl.className = "text-danger mt-1";
-                tsbStatusEl.innerText = "Ryzyko przeciążenia / Przetrenowanie";
+                tsbEl.className = "text-danger mt-1 mb-0";
+                tsbStatusEl.innerText = "Ryzyko przeciążenia organizmu";
                 tsbStatusEl.className = "text-danger fw-bold";
             }
 
@@ -116,15 +126,15 @@
                     datasets: [
                         {
                             type: 'bar',
-                            label: 'TSS (Dzienny stres)',
+                            label: 'Stres treningowy',
                             data: tssValues,
-                            backgroundColor: 'rgba(158, 158, 158, 0.4)',
+                            backgroundColor: 'rgba(158, 158, 158, 0.35)',
                             barPercentage: 0.5,
                             yAxisID: 'yTss'
                         },
                         {
                             type: 'line',
-                            label: 'CTL (Fitness - 42d)',
+                            label: 'Forma',
                             data: ctlValues,
                             borderColor: '#1e88e5',
                             borderWidth: 2.5,
@@ -134,7 +144,7 @@
                         },
                         {
                             type: 'line',
-                            label: 'ATL (Fatigue - 7d)',
+                            label: 'Zmęczenie',
                             data: atlValues,
                             borderColor: '#e53935',
                             borderWidth: 2,
@@ -144,7 +154,7 @@
                         },
                         {
                             type: 'line',
-                            label: 'TSB (Form / Świeżość)',
+                            label: 'Świeżość',
                             data: tsbValues,
                             borderColor: '#43a047',
                             backgroundColor: 'rgba(67, 160, 71, 0.1)',
@@ -171,12 +181,12 @@
                         yMetrics: {
                             type: 'linear',
                             position: 'left',
-                            title: { display: true, text: 'CTL / ATL / TSB' }
+                            title: { display: true, text: 'Obciążenie i świeżość (Forma / Zmęczenie)' }
                         },
                         yTss: {
                             type: 'linear',
                             position: 'right',
-                            title: { display: true, text: 'TSS' },
+                            title: { display: true, text: 'Stres jednostki' },
                             beginAtZero: true,
                             grid: { drawOnChartArea: false }
                         }
@@ -186,8 +196,21 @@
         }
 
         async function recalculatePmc() {
-            await fetch('/Pmc/Recalculate', { method: 'POST' });
-            loadPmc(90);
+            const btn = document.getElementById('btnManualRecalc');
+            if (btn) {
+                btn.disabled = true;
+                btn.innerText = "Przeliczanie...";
+            }
+
+            try {
+                await fetch('/Pmc/Recalculate', { method: 'POST' });
+                await loadPmc(currentDays);
+            } finally {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerText = "Przelicz historię";
+                }
+            }
         }
 
         document.addEventListener("DOMContentLoaded", () => {

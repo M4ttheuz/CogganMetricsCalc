@@ -40,7 +40,6 @@ public class FitParserService : IFitParserService
         var mesgBroadcaster = new MesgBroadcaster();
         decode.MesgEvent += mesgBroadcaster.OnMesg;
 
-        // 1. Obsługa 1-sekundowych rekordów (RecordMesg)
         mesgBroadcaster.RecordMesgEvent += (sender, e) =>
         {
             var recordMesg = new RecordMesg(e.mesg);
@@ -84,7 +83,6 @@ public class FitParserService : IFitParserService
             records.Add(record);
         };
 
-        // 2. Obsługa podsumowania sesji (SessionMesg)
         mesgBroadcaster.SessionMesgEvent += (sender, e) =>
         {
             var sessionMesg = new SessionMesg(e.mesg);
@@ -131,20 +129,17 @@ public class FitParserService : IFitParserService
             }
         };
 
-        // 3. Odczyt strumienia FIT
         decode.Read(decodeStream);
 
-        // Fallback: jeśli nagłówek sesji nie miał ustawionego Sport.Cycling, ale rekordy mają moc (power meter)
         if (!isCyclingSession && records.Any(r => r.Power.HasValue && r.Power.Value > 0))
         {
             isCyclingSession = true;
             detectedSport = SportType.Road;
         }
 
-        // 4. Blokada innych dyscyplin (bieganie, spacer, pływanie, siłownia)
         if (!isCyclingSession)
         {
-            throw new InvalidOperationException($"Plik nie zawiera aktywności kolarskiej (wykryto: {rawSportName}). VeloAnalytics obsługuje wyłącznie sesje rowerowe.");
+            throw new InvalidOperationException($"Plik nie zawiera aktywności kolarskiej (wykryto: {rawSportName}). Aplikacja obsługuje wyłącznie sesje rowerowe.");
         }
 
         if (records.Count > 0)

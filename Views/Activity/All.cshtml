@@ -12,10 +12,23 @@
             <h3 class="fw-bold text-dark mb-1">Historia treningów</h3>
             <p class="text-muted small mb-0">Łącznie zarejestrowano: <strong>@totalCount</strong> sesji</p>
         </div>
-        <a asp-action="Upload" class="btn btn-primary fw-semibold">
-            <i class="bi bi-plus-circle me-1"></i> Importuj pliki FIT
-        </a>
+        <div class="d-flex align-items-center gap-2">
+            @if (totalCount > 0)
+            {
+                <form asp-action="DeleteAll" method="post" class="d-inline" 
+                      onsubmit="return confirm('UWAGA: Czy na pewno chcesz bezpowrotnie usunąć WSZYSTKIE jednostki treningowe? Wykres formy zostanie zresetowany.');">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn btn-outline-danger fw-semibold">
+                        <i class="bi bi-trash3 me-1"></i> Usuń wszystko
+                    </button>
+                </form>
+            }
+            <a asp-action="Upload" class="btn btn-primary fw-semibold">
+                <i class="bi bi-plus-circle me-1"></i> Importuj pliki FIT
+            </a>
+        </div>
     </div>
+</div>
 
     @if (!Model.Any())
     {
@@ -86,7 +99,6 @@
             </div>
         </div>
 
-        <!-- Paginacja -->
         @if (totalPages > 1)
         {
             <nav>
@@ -94,12 +106,6 @@
                     <li class="page-item @(currentPage == 1 ? "disabled" : "")">
                         <a class="page-link" asp-action="All" asp-route-page="@(currentPage - 1)">Poprzednia</a>
                     </li>
-                    @for (int i = 1; i <= totalPages; i++)
-                    {
-                        <li class="page-item @(i == currentPage ? "active" : "")">
-                            <a class="page-link" asp-action="All" asp-route-page="@i">@i</a>
-                        </li>
-                    }
                     <li class="page-item @(currentPage == totalPages ? "disabled" : "")">
                         <a class="page-link" asp-action="All" asp-route-page="@(currentPage + 1)">Następna</a>
                     </li>

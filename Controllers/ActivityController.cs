@@ -46,6 +46,11 @@ public class ActivityController : Controller
             return Json(new { success = false, message = "Brak plików." });
         }
 
+        if (files.Any(file => file.Length > FitUploadLimits.MaxFileSizeBytes))
+        {
+            return Json(new { success = false, message = "Każdy plik FIT może mieć maksymalnie 50 MiB." });
+        }
+
         var streams = files.Select(f => (fileStream: f.OpenReadStream(), fileName: f.FileName)).ToList();
         try
         {
@@ -81,7 +86,7 @@ public class ActivityController : Controller
         string formStatus;
         string badgeClass;
 
-        if (tsb > 15) { formStatus = "Świeżość / Roztrenowanie"; badgeClass = "bg-secondary"; }
+        if (tsb > 15) { formStatus = "Świeżość / roztrenowanie"; badgeClass = "bg-secondary"; }
         else if (tsb >= -10) { formStatus = "Optymalna strefa formy"; badgeClass = "bg-success"; }
         else if (tsb >= -30) { formStatus = "Produktywny blok"; badgeClass = "bg-warning text-dark"; }
         else { formStatus = "Ryzyko przeciążenia"; badgeClass = "bg-danger"; }
@@ -99,7 +104,6 @@ public class ActivityController : Controller
             })
             .FirstOrDefaultAsync();
 
-        // Pobieramy ostatnie aktywności z pominięciem kolumny TelemetryBlob
         var recent = await _context.Activities
             .AsNoTracking()
             .Where(a => a.UserId == CurrentUserId)
@@ -157,6 +161,8 @@ public class ActivityController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [RequestFormLimits(MultipartBodyLengthLimit = FitUploadLimits.MaxFileSizeBytes + 1024 * 1024)]
+    [RequestSizeLimit(FitUploadLimits.MaxFileSizeBytes + 1024 * 1024)]
     public async Task<IActionResult> UploadSingleChunk(IFormFile file)
     {
         if (file == null || file.Length == 0)
@@ -164,10 +170,15 @@ public class ActivityController : Controller
             return Json(new { success = false, message = "Pusty plik." });
         }
 
+        if (file.Length > FitUploadLimits.MaxFileSizeBytes)
+        {
+            return Json(new { success = false, message = "Plik FIT może mieć maksymalnie 50 MiB." });
+        }
+
         try
         {
             using var stream = file.OpenReadStream();
-            var activity = await _activityService.ProcessAndSaveFitFileAsync(stream, file.FileName, CurrentUserId);
+            var activity = await _activityService.ProcessAndSaveFitFileAsync(stream, file.FileName, CurrentUserId, recalculatePmc: false);
             return Json(new { success = true, title = activity.Title });
         }
         catch (Exception ex)
@@ -409,6 +420,22 @@ public class ActivityController : Controller
         await _pmcService.RecalculatePmcAsync(CurrentUserId);
 
         TempData["Success"] = "Trening został pomyślnie usunięty.";
+        return RedirectToAction(nameof(All));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeleteAll()
+    {
+        var userId = CurrentUserId;
+
+        await _context.Activities
+            .Where(a => a.UserId == userId)
+            .ExecuteDeleteAsync();
+
+        await _pmcService.RecalculatePmcAsync(userId);
+
+        TempData["SuccessMessage"] = "Wszystkie aktywności zostały pomyślnie usunięte.";
         return RedirectToAction(nameof(All));
     }
 }

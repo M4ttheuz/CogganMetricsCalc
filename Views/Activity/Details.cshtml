@@ -5,51 +5,36 @@
 
 @section Styles {
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <style>
-        #activityMap {
-            height: 380px;
-            width: 100%;
-            border-radius: 8px;
-        }
-
-        .current-marker-dot {
-            background-color: #ff1744;
-            border: 2px solid #ffffff;
-            border-radius: 50%;
-            box-shadow: 0 0 8px rgba(0, 0, 0, 0.6);
-        }
-    </style>
 }
 
 <div>
-    <!-- Górna belka nawigacji i tytułu -->
     <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
         <div>
-            <a asp-action="Index" class="btn btn-sm btn-outline-secondary mb-2">
-                <i class="bi bi-arrow-left"></i> Lista aktywności
+            <a asp-action="All" class="btn btn-sm btn-outline-secondary mb-2">
+                <i class="bi bi-arrow-left"></i> Historia treningów
             </a>
             <h2 class="fw-bold mb-0 text-dark">@Model.Title</h2>
-            <small class="text-muted">
-                <i class="bi bi-calendar3 me-1"></i> @Model.StartTime.ToString("f")
-            </small>
+            <div class="d-flex align-items-center gap-2 mt-1">
+                <span class="badge bg-dark fw-normal"><i class="bi bi-bicycle me-1"></i>@Model.SportType</span>
+                <small class="text-muted">
+                    <i class="bi bi-calendar3 me-1"></i> @Model.StartTime.ToString("dd.MM.yyyy HH:mm")
+                </small>
+            </div>
         </div>
         <div class="d-flex align-items-center gap-2">
-            <span class="badge bg-dark fs-6 fw-normal px-3 py-2 d-flex align-items-center gap-1">
-                <i class="bi bi-bicycle"></i> @Model.SportType
-            </span>
-            <form asp-action="Delete" asp-route-id="@Model.Id" method="post" class="d-inline" onsubmit="return confirm('Czy na pewno chcesz bezpowrotnie usunąć ten trening? Wszystkie powiązane rekordy i wykresy PMC zostaną przeliczone.');">
+            <form asp-action="Delete" asp-route-id="@Model.Id" method="post" class="d-inline" onsubmit="return confirm('Czy na pewno chcesz bezpowrotnie usunąć ten trening? Wykresy obciążenia i świeżości zostaną automatycznie przeliczone.');">
+                @Html.AntiForgeryToken()
                 <button type="submit" class="btn btn-outline-danger btn-sm px-3 py-2" title="Usuń aktywność">
-                    <i class="bi bi-trash3 me-1"></i> Usuń
+                    <i class="bi bi-trash3 me-1"></i> Usuń aktywność
                 </button>
             </form>
         </div>
     </div>
 
-    <!-- 1. RZĄD: 4 GŁÓWNE KAFELKI METRYK COGGANA -->
     <div class="row g-3 mb-4">
         <div class="col-6 col-lg-3">
             <div class="metric-tile np-tile shadow-sm">
-                <div class="metric-label">Normalized Power (NP)</div>
+                <div class="metric-label">Moc znormalizowana (NP)</div>
                 <div class="metric-val text-primary">
                     @(Model.CogganMetrics?.NormalizedPower?.ToString() ?? "-") <span class="fs-6 fw-normal text-muted">W</span>
                 </div>
@@ -60,7 +45,7 @@
                     }
                     else
                     {
-                        <span>Wskaźnik obciążenia</span>
+                        <span>Koszt metaboliczny</span>
                     }
                 </div>
             </div>
@@ -68,51 +53,41 @@
 
         <div class="col-6 col-lg-3">
             <div class="metric-tile tss-tile shadow-sm">
-                <div class="metric-label">Training Stress Score</div>
+                <div class="metric-label">Stres treningowy</div>
                 <div class="metric-val text-danger">
-                    @(Model.CogganMetrics?.TrainingStressScore?.ToString("F1") ?? "-")
-                </div>
-                <div class="metric-sub">
-                    <span>Koszt fizjologiczny</span>
+                    @(Model.CogganMetrics?.TrainingStressScore?.ToString("F0") ?? "-")
                 </div>
             </div>
         </div>
 
         <div class="col-6 col-lg-3">
             <div class="metric-tile if-tile shadow-sm">
-                <div class="metric-label">Intensity Factor (IF)</div>
+                <div class="metric-label">Współczynnik intensywności (IF)</div>
                 <div class="metric-val text-warning">
                     @(Model.CogganMetrics?.IntensityFactor?.ToString("F2") ?? "-")
-                </div>
-                <div class="metric-sub">
-                    <span>% aktualnego FTP</span>
                 </div>
             </div>
         </div>
 
         <div class="col-6 col-lg-3">
             <div class="metric-tile work-tile shadow-sm">
-                <div class="metric-label">Praca całkowita</div>
+                <div class="metric-label">Praca wykonana</div>
                 <div class="metric-val text-success">
                     @(Model.CogganMetrics?.WorkKj?.ToString() ?? "-") <span class="fs-6 fw-normal text-muted">kJ</span>
-                </div>
-                <div class="metric-sub">
-                    <span>Wydatek energii</span>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- 2. RZĄD: PARAMETRY SESJI W FORMIE MINI-KAFELKÓW -->
     <div class="card mb-4 border-0 shadow-sm">
         <div class="card-body py-3">
             <div class="row row-cols-2 row-cols-md-3 row-cols-lg-6 g-3 text-center">
                 <div>
                     <div class="text-muted small">Dystans</div>
-                    <div class="fs-5 fw-bold">@(Math.Round(Model.DistanceMeters / 1000m, 2)) km</div>
+                    <div class="fs-5 fw-bold">@(Math.Round(Model.DistanceMeters / 1000m, 1)) km</div>
                 </div>
                 <div>
-                    <div class="text-muted small">Czas trwania</div>
+                    <div class="text-muted small">Czas jazdy</div>
                     <div class="fs-5 fw-bold">@TimeSpan.FromSeconds(Model.DurationSeconds).ToString(@"hh\:mm\:ss")</div>
                 </div>
                 <div>
@@ -128,20 +103,18 @@
                     <div class="fs-5 fw-bold">@(Model.CogganMetrics?.MaxPower?.ToString() ?? "-") W</div>
                 </div>
                 <div>
-                    <div class="text-muted small">Średnie HR</div>
+                    <div class="text-muted small">Średnie tętno</div>
                     <div class="fs-5 fw-bold">@(Model.CogganMetrics?.AvgHeartRate?.ToString() ?? "-") bpm</div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- 3. RZĄD: REKORDY MOCY (MMP) -->
     @if (Model.PowerPeaks != null && Model.PowerPeaks.Any())
     {
         <div class="card mb-4 border-0 shadow-sm">
             <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
-                <span class="text-dark"><i class="bi bi-lightning-charge-fill text-warning me-1"></i> Maksymalna moc średnia (Peak Watts)</span>
-                <span class="badge bg-light text-secondary border">Model MMP</span>
+                <span class="text-dark fw-semibold"><i class="bi bi-lightning-charge-fill text-warning me-1"></i> Moc z wybranych okresów</span>
             </div>
             <div class="card-body">
                 <div class="row row-cols-2 row-cols-md-4 row-cols-lg-8 g-2">
@@ -149,10 +122,10 @@
                     {
                         string label = peak.DurationSeconds < 60 ? $"{peak.DurationSeconds}s" : $"{peak.DurationSeconds / 60}m";
                         <div class="col">
-                            <div class="peak-pill">
+                            <div class="peak-pill shadow-none">
                                 <div class="text-muted small fw-semibold">@label</div>
                                 <div class="fs-5 fw-bold text-dark mb-0">@peak.Watts W</div>
-                                <div class="text-primary small fw-bold">@peak.WattsPerKg.ToString("F2") <span class="fw-normal text-muted" style="font-size:0.75rem">W/kg</span></div>
+                                <div class="text-primary small fw-bold">@peak.WattsPerKg.ToString("F2") <span class="fw-normal text-muted peak-watts-per-kg-unit">W/kg</span></div>
                             </div>
                         </div>
                     }
@@ -160,16 +133,14 @@
             </div>
         </div>
     }
-
-    <!-- 4. RZĄD (2 KOLUMNY): KRZYWA MOCY + STREFY COGGANA -->
     <div class="row g-4 mb-4">
         <div class="col-lg-6">
             <div class="card h-100 border-0 shadow-sm">
-                <div class="card-header bg-white py-3">
-                    <i class="bi bi-graph-down text-primary me-1"></i> Krzywa Mocy (Power Duration Curve)
+                <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                    <span class="fw-semibold"><i class="bi bi-graph-down text-primary me-1"></i> Krzywa mocy</span>
                 </div>
                 <div class="card-body">
-                    <div style="position: relative; height: 280px; width: 100%;">
+                    <div class="chart-container chart-container--short">
                         <canvas id="pdcChart"></canvas>
                     </div>
                 </div>
@@ -177,11 +148,11 @@
         </div>
         <div class="col-lg-6">
             <div class="card h-100 border-0 shadow-sm">
-                <div class="card-header bg-white py-3">
-                    <i class="bi bi-bar-chart-steps text-info me-1"></i> Czas w strefach mocy (Z1 - Z7)
+                <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                    <span class="fw-semibold"><i class="bi bi-bar-chart-steps text-info me-1"></i> Czas w strefach mocy</span>
                 </div>
                 <div class="card-body">
-                    <div style="position: relative; height: 280px; width: 100%;">
+                    <div class="chart-container chart-container--short">
                         <canvas id="zonesChart"></canvas>
                     </div>
                 </div>
@@ -189,25 +160,23 @@
         </div>
     </div>
 
-    <!-- 5. RZĄD: MAPA GPS -->
-    <div class="card mb-4 border-0 shadow-sm" id="mapCard" style="display: none;">
+    <div class="card mb-4 border-0 shadow-sm is-hidden" id="mapCard">
         <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
-            <span><i class="bi bi-map text-success me-1"></i> Ślad trasy GPS</span>
-            <small class="text-muted"><i class="bi bi-cursor me-1"></i>Najedź na wykres poniżej, aby śledzić kursor na trasie</small>
+            <span class="fw-semibold"><i class="bi bi-map text-success me-1"></i> Ślad trasy GPS</span>
+            <small class="text-muted"><i class="bi bi-cursor me-1"></i>Przesuwaj kursor nad dolnym wykresem, aby śledzić pozycję na trasie</small>
         </div>
         <div class="card-body p-2">
             <div id="activityMap"></div>
         </div>
     </div>
 
-    <!-- 6. RZĄD: PEŁNY WYKRES TELEMETRII (MOC + TĘTNO) -->
     <div class="card mb-5 border-0 shadow-sm">
         <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
-            <span><i class="bi bi-speedometer2 text-danger me-1"></i> Przebieg sesji</span>
-            <small class="text-muted">Próbkowanie 3s | Lewa oś: Moc [W] | Prawa oś: Tętno [bpm]</small>
+            <span class="fw-semibold"><i class="bi bi-speedometer2 text-danger me-1"></i> Przebieg telemetryczny sesji</span>
+            <small class="text-muted">Niebieski: Moc [W] | Czerwony: Tętno [bpm] | Szary: Profil wysokości [m]</small>
         </div>
         <div class="card-body">
-            <div style="position: relative; height: 350px; width: 100%;">
+            <div class="chart-container chart-container--telemetry">
                 <canvas id="telemetryChart"></canvas>
             </div>
         </div>
@@ -222,15 +191,30 @@
         document.addEventListener("DOMContentLoaded", async () => {
             const activityId = @Model.Id;
 
-            // --- 1. STREFY MOCY ---
             try {
-                const zonesResponse = await fetch(`/Activity/GetPowerZones/${activityId}`);
-                if (zonesResponse.ok) {
-                    const data = await zonesResponse.json();
+                const [zonesRes, pdcRes, telemetryRes] = await Promise.all([
+                    fetch(`/Activity/GetPowerZones/${activityId}`),
+                    fetch(`/Activity/GetPowerCurve/${activityId}`),
+                    fetch(`/Activity/GetTelemetry/${activityId}`)
+                ]);
+
+                if (zonesRes.ok) {
+                    const data = await zonesRes.json();
                     if (data && data.zones && data.zones.length > 0) {
-                        const labels = data.zones.map(z => `${z.name} (${z.rangeDesc})`);
+                        const labels = data.zones.map(z => z.name);
                         const percentages = data.zones.map(z => z.percent);
+                        const ranges = data.zones.map(z => z.rangeDesc);
                         const durations = data.zones.map(z => `${Math.floor(z.seconds / 60)}m ${z.seconds % 60}s`);
+
+                        const zoneColors = [
+                            '#94a3b8', // Z1 - Aktywna regeneracja
+                            '#38bdf8', // Z2 - Tlenowa baza
+                            '#22c55e', // Z3 - Tempo
+                            '#eab308', // Z4 - Próg FTP
+                            '#f97316', // Z5 - VO2max
+                            '#ef4444', // Z6 - Pojemność beztlenowa
+                            '#a855f7'  // Z7 - Moc neuromięśniowa
+                        ];
 
                         const ctxZones = document.getElementById('zonesChart').getContext('2d');
                         new Chart(ctxZones, {
@@ -239,206 +223,202 @@
                                 labels: labels,
                                 datasets: [{
                                     data: percentages,
-                                    backgroundColor: [
-                                        '#94a3b8', // Z1
-                                        '#38bdf8', // Z2
-                                        '#22c55e', // Z3
-                                        '#eab308', // Z4
-                                        '#f97316', // Z5
-                                        '#ef4444', // Z6
-                                        '#a855f7'  // Z7
-                                    ],
-                                    borderRadius: 6
+                                    backgroundColor: zoneColors,
+                                    borderRadius: 6,
+                                    barPercentage: 0.65
                                 }]
                             },
                             options: {
-                                indexAxis: 'y',
                                 responsive: true,
                                 maintainAspectRatio: false,
-                                scales: { 
-                                    x: { 
-                                        beginAtZero: true, 
-                                        max: 100,
-                                        ticks: { callback: v => v + '%' }
+                                scales: {
+                                    x: {
+                                        grid: { display: false },
+                                        ticks: { font: { weight: '600' } }
                                     },
                                     y: {
-                                        grid: { display: false }
+                                        beginAtZero: true,
+                                        ticks: { callback: v => v + '%' },
+                                        grid: { color: 'rgba(0,0,0,0.05)' }
                                     }
                                 },
                                 plugins: {
-                                    tooltip: { callbacks: { label: (ctx) => ` ${percentages[ctx.dataIndex]}% (${durations[ctx.dataIndex]})` } },
-                                    legend: { display: false }
+                                    legend: { display: false },
+                                    tooltip: {
+                                        callbacks: {
+                                            title: (items) => `${labels[items[0].dataIndex]} (${ranges[items[0].dataIndex]})`,
+                                            label: (ctx) => ` Udział: ${percentages[ctx.dataIndex]}% (${durations[ctx.dataIndex]})`
+                                        }
+                                    }
                                 }
                             }
                         });
                     }
                 }
-            } catch (err) {
-                console.error("Błąd stref mocy:", err);
-            }
 
-            // --- 2. KRZYWA MOCY (PDC) ---
-            try {
-                const pdcResponse = await fetch(`/Activity/GetPowerCurve/${activityId}`);
-                if (pdcResponse.ok) {
-                    const pdcData = await pdcResponse.json();
+                if (pdcRes.ok) {
+                    const pdcData = await pdcRes.json();
                     const ctxPdc = document.getElementById('pdcChart').getContext('2d');
                     new Chart(ctxPdc, {
                         type: 'line',
                         data: {
                             labels: pdcData.labels,
                             datasets: [{
-                                label: 'Moc maks. [W]',
+                                label: 'Moc maksymalna [W]',
                                 data: pdcData.watts,
                                 borderColor: '#f59e0b',
-                                backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                                backgroundColor: 'rgba(245, 158, 11, 0.12)',
                                 fill: true,
                                 borderWidth: 2,
                                 tension: 0.25,
                                 pointRadius: 3,
-                                pointHoverRadius: 5
+                                pointHoverRadius: 6
                             }]
                         },
                         options: {
                             responsive: true,
                             maintainAspectRatio: false,
-                            scales: { 
-                                x: { grid: { display: false } }, 
-                                y: { 
-                                    beginAtZero: false, 
-                                    title: { display: true, text: 'Moc [W]' } 
-                                } 
+                            scales: {
+                                x: { grid: { display: false } },
+                                y: {
+                                    beginAtZero: false,
+                                    title: { display: true, text: 'Moc [W]' },
+                                    grid: { color: 'rgba(0,0,0,0.05)' }
+                                }
                             },
-                            plugins: { 
+                            plugins: {
                                 legend: { display: false },
                                 tooltip: { callbacks: { label: (ctx) => ` ${ctx.raw} W` } }
                             }
                         }
                     });
                 }
-            } catch (err) {
-                console.error("Błąd krzywej mocy:", err);
-            }
 
-            // --- 3. TELEMETRIA + MAPA GPS ---
-            try {
-                const telemetryResponse = await fetch(`/Activity/GetTelemetry/${activityId}`);
-                if (telemetryResponse.ok) {
-                    const data = await telemetryResponse.json();
+                if (telemetryRes.ok) {
+                    const telemetryData = await telemetryRes.json();
+                    if (telemetryData && telemetryData.length > 0) {
+                        const labels = telemetryData.map(d => d.time);
+                        const powerData = telemetryData.map(d => d.power);
+                        const hrData = telemetryData.map(d => d.heartRate > 0 ? d.heartRate : null);
+                        const altitudeData = telemetryData.map(d => d.altitude ?? null);
 
-                    const labels = data.map(d => d.time);
-                    const powerData = data.map(d => d.power);
-                    const hrData = data.map(d => d.heartRate > 0 ? d.heartRate : null);
+                        const gpsCoords = telemetryData
+                            .map((d, index) => ({ lat: d.lat, lng: d.lng, index }))
+                            .filter(p => p.lat !== null && p.lng !== null && !isNaN(p.lat) && !isNaN(p.lng));
 
-                    const gpsCoords = data
-                        .map((d, index) => ({ lat: d.lat, lng: d.lng, index }))
-                        .filter(p => p.lat !== null && p.lng !== null && !isNaN(p.lat) && !isNaN(p.lng));
+                        let map = null;
+                        let currentMarker = null;
 
-                    let map = null;
-                    let currentMarker = null;
+                        if (gpsCoords.length > 0) {
+                            const mapCard = document.getElementById('mapCard');
+                            mapCard.classList.remove('is-hidden');
 
-                    if (gpsCoords.length > 0) {
-                        const mapCard = document.getElementById('mapCard');
-                        mapCard.style.display = 'block';
+                            const startPoint = [gpsCoords[0].lat, gpsCoords[0].lng];
+                            map = L.map('activityMap').setView(startPoint, 13);
 
-                        const startPoint = [gpsCoords[0].lat, gpsCoords[0].lng];
-                        map = L.map('activityMap').setView(startPoint, 13);
+                            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                                maxZoom: 18,
+                                attribution: '© OpenStreetMap contributors'
+                            }).addTo(map);
 
-                        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                            maxZoom: 18,
-                            attribution: '&copy; OpenStreetMap contributors'
-                        }).addTo(map);
+                            const latLngs = gpsCoords.map(p => [p.lat, p.lng]);
+                            const polyline = L.polyline(latLngs, { color: '#0284c7', weight: 4, opacity: 0.9 }).addTo(map);
 
-                        const latLngs = gpsCoords.map(p => [p.lat, p.lng]);
-                        const polyline = L.polyline(latLngs, { color: '#0284c7', weight: 4, opacity: 0.9 }).addTo(map);
+                            map.fitBounds(polyline.getBounds(), { padding: [25, 25] });
 
-                        map.fitBounds(polyline.getBounds());
+                            L.circleMarker(latLngs[0], { radius: 6, color: '#15803d', fillColor: '#22c55e', fillOpacity: 1 }).addTo(map).bindPopup("Start");
+                            L.circleMarker(latLngs[latLngs.length - 1], { radius: 6, color: '#b91c1c', fillColor: '#ef4444', fillOpacity: 1 }).addTo(map).bindPopup("Meta");
 
-                        L.circleMarker(latLngs[0], { radius: 6, color: '#15803d', fillColor: '#22c55e', fillOpacity: 1 }).addTo(map).bindPopup("Start");
-                        L.circleMarker(latLngs[latLngs.length - 1], { radius: 6, color: '#b91c1c', fillColor: '#ef4444', fillOpacity: 1 }).addTo(map).bindPopup("Meta");
+                            const customIcon = L.divIcon({
+                                className: 'current-marker-dot',
+                                iconSize: [14, 14],
+                                iconAnchor: [7, 7]
+                            });
+                            currentMarker = L.marker(startPoint, { icon: customIcon }).addTo(map);
 
-                        const customIcon = L.divIcon({
-                            className: 'current-marker-dot',
-                            iconSize: [14, 14],
-                            iconAnchor: [7, 7]
-                        });
-                        currentMarker = L.marker(startPoint, { icon: customIcon }).addTo(map);
-
-                        setTimeout(() => map.invalidateSize(), 150);
-                    }
-
-                    const ctxTelemetry = document.getElementById('telemetryChart').getContext('2d');
-                    new Chart(ctxTelemetry, {
-                        type: 'line',
-                        data: {
-                            labels: labels,
-                            datasets: [
-                                {
-                                    label: 'Moc (W)',
-                                    data: powerData,
-                                    borderColor: '#0284c7',
-                                    backgroundColor: 'rgba(2, 132, 199, 0.12)',
-                                    fill: true,
-                                    borderWidth: 1.5,
-                                    pointRadius: 0,
-                                    tension: 0.15,
-                                    yAxisID: 'yPower'
-                                },
-                                {
-                                    label: 'Tętno (bpm)',
-                                    data: hrData,
-                                    borderColor: '#ef4444',
-                                    backgroundColor: 'transparent',
-                                    fill: false,
-                                    borderWidth: 1.5,
-                                    pointRadius: 0,
-                                    tension: 0.15,
-                                    yAxisID: 'yHr'
-                                }
-                            ]
-                        },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            interaction: {
-                                mode: 'index',
-                                intersect: false
-                            },
-                            onHover: (event, chartElements) => {
-                                if (!map || !currentMarker || chartElements.length === 0) return;
-
-                                const dataIndex = chartElements[0].index;
-                                const item = data[dataIndex];
-
-                                if (item && item.lat && item.lng) {
-                                    currentMarker.setLatLng([item.lat, item.lng]);
-                                }
-                            },
-                            scales: {
-                                x: { ticks: { maxTicksLimit: 12 }, grid: { display: false } },
-                                yPower: {
-                                    type: 'linear',
-                                    position: 'left',
-                                    title: { display: true, text: 'Moc [W]' },
-                                    beginAtZero: true
-                                },
-                                yHr: {
-                                    type: 'linear',
-                                    position: 'right',
-                                    title: { display: true, text: 'Tętno [bpm]' },
-                                    grid: { drawOnChartArea: false },
-                                    min: 40,
-                                    max: 210
-                                }
-                            },
-                            plugins: {
-                                legend: { position: 'top' }
-                            }
+                            setTimeout(() => map.invalidateSize(), 200);
                         }
-                    });
+
+                        const ctxTelemetry = document.getElementById('telemetryChart').getContext('2d');
+                        new Chart(ctxTelemetry, {
+                            type: 'line',
+                            data: {
+                                labels: labels,
+                                datasets: [
+                                    {
+                                        label: 'Moc (W)',
+                                        data: powerData,
+                                        borderColor: '#0284c7',
+                                        backgroundColor: 'rgba(2, 132, 199, 0.1)',
+                                        fill: false,
+                                        borderWidth: 1.5,
+                                        pointRadius: 0,
+                                        tension: 0.1,
+                                        order: 2,
+                                        yAxisID: 'yPower'
+                                    },
+                                    {
+                                        label: 'Tętno (bpm)',
+                                        data: hrData,
+                                        borderColor: '#ef4444',
+                                        backgroundColor: 'transparent',
+                                        fill: false,
+                                        borderWidth: 1.5,
+                                        pointRadius: 0,
+                                        tension: 0.1,
+                                        order: 2,
+                                        yAxisID: 'yHr'
+                                    }
+                                ]
+                            },
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                interaction: {
+                                    mode: 'index',
+                                    intersect: false
+                                },
+                                onHover: (event, chartElements) => {
+                                    if (!map || !currentMarker || chartElements.length === 0) return;
+                                    const dataIndex = chartElements[0].index;
+                                    const item = telemetryData[dataIndex];
+                                    if (item && item.lat && item.lng) {
+                                        currentMarker.setLatLng([item.lat, item.lng]);
+                                    }
+                                },
+                                scales: {
+                                    x: {
+                                        ticks: { maxTicksLimit: 12 },
+                                        grid: { display: false }
+                                    },
+                                    yPower: {
+                                        type: 'linear',
+                                        position: 'left',
+                                        title: { display: true, text: 'Moc [W]' },
+                                        beginAtZero: true,
+                                        grid: { color: 'rgba(0,0,0,0.05)' }
+                                    },
+                                    yHr: {
+                                        type: 'linear',
+                                        position: 'right',
+                                        title: { display: true, text: 'Tętno [bpm]' },
+                                        grid: { drawOnChartArea: false },
+                                        min: 40,
+                                        max: 210
+                                    }
+                                },
+                                plugins: {
+                                    legend: {
+                                        position: 'top',
+                                        labels: { usePointStyle: true, boxWidth: 8 }
+                                    }
+                                }
+                            }
+                        });
+                    }
                 }
             } catch (err) {
-                console.error("Błąd telemetrii i mapy:", err);
+                console.error("Błąd ładowania danych telemetrycznych:", err);
             }
         });
     </script>
