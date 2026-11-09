@@ -183,10 +183,6 @@ namespace inzynierka.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<decimal>("WeightKg")
-                        .HasPrecision(5, 2)
-                        .HasColumnType("TEXT");
-
                     b.HasKey("Id");
 
                     b.HasIndex("Email")
@@ -215,6 +211,29 @@ namespace inzynierka.Migrations
                     b.HasIndex("UserId", "EffectiveDate");
 
                     b.ToTable("UserFtpHistories");
+                });
+
+            modelBuilder.Entity("inzynierka.Models.Entities.UserWeightHistory", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("EffectiveDate")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<decimal>("WeightKg")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("UserWeightHistories");
                 });
 
             modelBuilder.Entity("inzynierka.Models.Entities.Activity", b =>
@@ -272,6 +291,17 @@ namespace inzynierka.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("inzynierka.Models.Entities.UserWeightHistory", b =>
+                {
+                    b.HasOne("inzynierka.Models.Entities.User", "User")
+                        .WithMany("WeightHistory")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("inzynierka.Models.Entities.Activity", b =>
                 {
                     b.Navigation("CogganMetrics");
@@ -286,6 +316,8 @@ namespace inzynierka.Migrations
                     b.Navigation("DailyMetrics");
 
                     b.Navigation("FtpHistory");
+
+                    b.Navigation("WeightHistory");
                 });
 #pragma warning restore 612, 618
         }

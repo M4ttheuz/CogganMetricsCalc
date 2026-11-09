@@ -16,6 +16,8 @@ public class AppDbContext : DbContext
     public DbSet<DailyMetric> DailyMetrics => Set<DailyMetric>();
     public DbSet<ActivityPowerPeak> ActivityPowerPeaks => Set<ActivityPowerPeak>();
 
+    public DbSet<UserWeightHistory> UserWeightHistories => Set<UserWeightHistory>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -24,7 +26,6 @@ public class AppDbContext : DbContext
         {
             entity.HasKey(u => u.Id);
             entity.HasIndex(u => u.Email).IsUnique();
-            entity.Property(u => u.WeightKg).HasPrecision(5, 2);
         });
 
         modelBuilder.Entity<UserFtpHistory>(entity =>
@@ -87,6 +88,15 @@ public class AppDbContext : DbContext
                   .OnDelete(DeleteBehavior.Cascade);
 
             entity.HasIndex(p => new { p.ActivityId, p.DurationSeconds });
+        });
+
+        modelBuilder.Entity<UserWeightHistory>(entity =>
+        {
+            entity.Property(e => e.WeightKg).HasPrecision(5, 2);
+            entity.HasOne(e => e.User)
+                  .WithMany(u => u.WeightHistory)
+                  .HasForeignKey(e => e.UserId)
+                  .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }

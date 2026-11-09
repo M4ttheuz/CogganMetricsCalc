@@ -11,5 +11,6 @@ public interface IActivityService
     Task<Activity?> GetActivityDetailsAsync(int activityId);
     Task<BulkUploadResult> BulkUploadAsync(IEnumerable<(Stream fileStream, string fileName)> files, int userId);
     Task<List<Activity>> GetRecentActivitiesAsync(int userId);
+    Task RecalculateWeightHistoryAsync(int userId);
 
 }

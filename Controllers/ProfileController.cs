@@ -1,4 +1,4 @@
-﻿using System.Security.Claims;
+﻿using Dynastream.Fit;
 using inzynierka.Data;
 using inzynierka.Models.Entities;
 using inzynierka.Models.ViewModels;
@@ -6,6 +6,8 @@ using inzynierka.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
+using DateTime = System.DateTime;
 
 namespace inzynierka.Controllers;
 
@@ -14,6 +16,7 @@ public class ProfileController : Controller
 {
     private readonly AppDbContext _context;
     private readonly IPmcService _pmcService;
+    private readonly IActivityService _activityService;
 
     private int CurrentUserId
     {
@@ -24,10 +27,14 @@ public class ProfileController : Controller
         }
     }
 
-    public ProfileController(AppDbContext context, IPmcService pmcService)
+    public ProfileController(
+        AppDbContext context,
+        IPmcService pmcService,
+        IActivityService activityService)
     {
         _context = context;
         _pmcService = pmcService;
+        _activityService = activityService;
     }
 
     [HttpGet]
@@ -36,20 +43,27 @@ public class ProfileController : Controller
         var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == CurrentUserId);
         if (user == null) return NotFound();
 
-        var history = await _context.UserFtpHistories
+        var ftpHistory = await _context.UserFtpHistories
             .Where(f => f.UserId == CurrentUserId)
             .OrderByDescending(f => f.EffectiveDate)
             .ToListAsync();
 
-        int currentFtp = history.FirstOrDefault()?.FtpValue ?? 0;
+        var weightHistory = await _context.UserWeightHistories
+            .Where(w => w.UserId == CurrentUserId)
+            .OrderByDescending(w => w.EffectiveDate)
+            .ToListAsync();
+
+        int currentFtp = ftpHistory.FirstOrDefault()?.FtpValue ?? 0;
+        decimal currentWeight = weightHistory.FirstOrDefault()?.WeightKg ?? 70m;
 
         var model = new ProfileViewModel
         {
             UserId = user.Id,
             Email = user.Email,
-            WeightKg = user.WeightKg,
+            WeightKg = currentWeight,
             CurrentFtp = currentFtp,
-            FtpHistory = history,
+            FtpHistory = ftpHistory,
+            WeightHistory = weightHistory,
             NewFtpValue = currentFtp > 0 ? currentFtp : 250,
             NewFtpEffectiveDate = DateTime.Today
         };
@@ -59,20 +73,61 @@ public class ProfileController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> UpdateWeight(decimal weightKg)
+    public async Task<IActionResult> AddWeight(decimal weightKg, DateTime effectiveDate)
     {
-        if (weightKg <= 30 || weightKg >= 250)
+        var userId = CurrentUserId;
+        if (userId == 0) return RedirectToAction("Login", "Account");
+
+        if (weightKg < 35 || weightKg > 200)
         {
-            TempData["Error"] = "Podaj realistyczną wagę w kg (30 - 250).";
+            TempData["Error"] = "Waga musi mieścić się w przedziale 35 - 200 kg.";
             return RedirectToAction(nameof(Index));
         }
 
-        var user = await _context.Users.FindAsync(CurrentUserId);
-        if (user != null)
+        if (effectiveDate.Date > DateTime.Today)
         {
-            user.WeightKg = Math.Round(weightKg, 1);
+            TempData["Error"] = "Data pomiaru masy ciała nie może być z przyszłości.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        var entry = new UserWeightHistory
+        {
+            UserId = userId,
+            WeightKg = Math.Round(weightKg, 1),
+            EffectiveDate = effectiveDate.Date
+        };
+
+        _context.UserWeightHistories.Add(entry);
+        await _context.SaveChangesAsync();
+
+        await _activityService.RecalculateWeightHistoryAsync(userId);
+
+        TempData["Success"] = "Zapisano pomiar masy ciała i zaktualizowano szczyty mocy.";
+        return RedirectToAction(nameof(Index));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeleteWeight(int id)
+    {
+        var userId = CurrentUserId;
+        if (userId == 0) return RedirectToAction("Login", "Account");
+
+        var count = await _context.UserWeightHistories.CountAsync(w => w.UserId == userId);
+        if (count <= 1)
+        {
+            TempData["Error"] = "Nie można usunąć ostatniego wpisu masy ciała. W profilu musi pozostać przynajmniej jedna wartość.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        var entry = await _context.UserWeightHistories.FirstOrDefaultAsync(w => w.Id == id && w.UserId == userId);
+        if (entry != null)
+        {
+            _context.UserWeightHistories.Remove(entry);
             await _context.SaveChangesAsync();
-            TempData["Success"] = "Waga zaktualizowana pomyślnie.";
+
+            await _activityService.RecalculateWeightHistoryAsync(userId);
+            TempData["Success"] = "Pomyślnie usunięto wpis masy ciała.";
         }
 
         return RedirectToAction(nameof(Index));
@@ -85,6 +140,12 @@ public class ProfileController : Controller
         if (ftpValue < 50 || ftpValue > 600)
         {
             TempData["Error"] = "Wartość FTP musi być w przedziale 50 - 600 W.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        if (effectiveDate.Date > DateTime.Today)
+        {
+            TempData["Error"] = "Data obowiązywania progu FTP nie może być z przyszłości.";
             return RedirectToAction(nameof(Index));
         }
 

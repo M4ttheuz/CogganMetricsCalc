@@ -22,5 +22,11 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
   </ItemGroup>
+	<ItemGroup>
+		<Compile Remove="inzynierka.Tests\**" />
+		<Content Remove="inzynierka.Tests\**" />
+		<EmbeddedResource Remove="inzynierka.Tests\**" />
+		<None Remove="inzynierka.Tests\**" />
+	</ItemGroup>
 
 </Project>

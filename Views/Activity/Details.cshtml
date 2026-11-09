@@ -1,6 +1,11 @@
 ﻿@model inzynierka.Models.Entities.Activity
 @{
     ViewData["Title"] = Model.Title;
+
+    var refPeak = Model.PowerPeaks?.FirstOrDefault(p => p.WattsPerKg > 0 && p.Watts > 0);
+    decimal? effectiveWeight = refPeak != null 
+        ? Math.Round((decimal)refPeak.Watts / refPeak.WattsPerKg, 1) 
+        : null;
 }
 
 @section Styles {
@@ -41,9 +46,9 @@
                     @(Model.CogganMetrics?.NormalizedPower?.ToString() ?? "—") <small class="fs-6 fw-normal text-muted">W</small>
                 </div>
                 <div class="metric-sub tabular-nums">
-                    @if (Model.CogganMetrics?.NormalizedPower != null && Model.User?.WeightKg > 0)
+                    @if (Model.CogganMetrics?.NormalizedPower != null && effectiveWeight > 0)
                     {
-                        <span class="text-info fw-bold">@((Model.CogganMetrics.NormalizedPower.Value / Model.User.WeightKg).ToString("F2")) W/kg</span>
+                        <span class="text-info fw-bold">@((Model.CogganMetrics.NormalizedPower.Value / effectiveWeight.Value).ToString("F2")) W/kg</span>
                     }
                     else
                     {
@@ -366,7 +371,6 @@
 
                             const startPoint = [gpsCoords[0].lat, gpsCoords[0].lng];
                             map = L.map('activityMap').setView(startPoint, 13);
-
                             
                             L.tileLayer('https://tiles.stadiamaps.com/tiles/stamen_toner_dark/{z}/{x}/{y}{r}.png', {
                                 maxZoom: 20,

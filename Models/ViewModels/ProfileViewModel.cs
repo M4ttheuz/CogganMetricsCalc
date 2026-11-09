@@ -9,6 +9,7 @@ public class ProfileViewModel
     public decimal WeightKg { get; set; }
     public int CurrentFtp { get; set; }
     public List<UserFtpHistory> FtpHistory { get; set; } = new();
+    public List<UserWeightHistory> WeightHistory { get; set; } = new();
 
     public int NewFtpValue { get; set; }
     public DateTime NewFtpEffectiveDate { get; set; } = DateTime.Today;

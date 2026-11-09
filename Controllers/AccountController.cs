@@ -49,7 +49,6 @@ public class AccountController : Controller
         var user = new User
         {
             Email = normalizedEmail,
-            WeightKg = model.WeightKg,
             CreatedAt = DateTime.UtcNow
         };
 
@@ -61,14 +60,24 @@ public class AccountController : Controller
             _context.Users.Add(user);
             await _context.SaveChangesAsync();
 
+            var initialDate = DateTime.UtcNow.Date.AddYears(-1);
+
             var ftpEntry = new UserFtpHistory
             {
                 UserId = user.Id,
                 FtpValue = model.InitialFtp,
-                EffectiveDate = DateTime.UtcNow.Date.AddYears(-1)
+                EffectiveDate = initialDate
+            };
+
+            var weightEntry = new UserWeightHistory
+            {
+                UserId = user.Id,
+                WeightKg = Math.Round(model.WeightKg, 1),
+                EffectiveDate = initialDate
             };
 
             _context.UserFtpHistories.Add(ftpEntry);
+            _context.UserWeightHistories.Add(weightEntry);
             await _context.SaveChangesAsync();
 
             await transaction.CommitAsync();

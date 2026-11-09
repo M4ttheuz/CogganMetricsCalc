@@ -7,7 +7,7 @@
     <!-- NAGŁÓWEK -->
     <div class="mb-4">
         <h4 class="fw-bold text-white mb-1 d-flex align-items-center">
-            <i class="bi bi-person-gear text-info me-2"></i>Profil zawodnika i historia FTP
+            <i class="bi bi-person-gear text-info me-2"></i>Profil zawodnika i historia parametrów
         </h4>
         <p class="text-muted small mb-0">Zarządzaj swoją masą ciała, progiem funkcjonalnym (FTP) oraz historią zmian</p>
     </div>
@@ -28,13 +28,13 @@
     }
 
     <div class="row g-4">
-        <!-- Lewa kolumna: Parametry zawodnika -->
+        <!-- Lewa kolumna: Podsumowanie i formularze dodawania -->
         <div class="col-lg-5">
-            <!-- Podstawowe dane i waga -->
+            <!-- Podstawowe dane -->
             <div class="card mb-4">
                 <div class="card-header py-3">
                     <span class="text-white fw-bold d-flex align-items-center">
-                        <i class="bi bi-person-badge text-info me-2"></i>Podstawowe dane zawodnika
+                        <i class="bi bi-person-badge text-info me-2"></i>Aktualne parametry zawodnika
                     </span>
                 </div>
                 <div class="card-body">
@@ -43,30 +43,53 @@
                         <div class="fw-bold text-white mt-1">@Model.Email</div>
                     </div>
 
-                    <div class="mb-4">
-                        <label class="text-muted small text-uppercase">Aktualny próg FTP</label>
-                        <div class="h2 fw-bold text-info mb-0 mt-1 tabular-nums">
-                            @(Model.CurrentFtp > 0 ? $"{Model.CurrentFtp} W" : "Nieustawione")
-                        </div>
-                        @if (Model.CurrentFtp > 0 && Model.WeightKg > 0)
-                        {
-                            <div class="mt-1">
-                                <span class="badge bg-warning bg-opacity-10 text-warning border border-warning border-opacity-25 tabular-nums fw-semibold">
-                                    @Math.Round(Model.CurrentFtp / Model.WeightKg, 2) W/kg
-                                </span>
+                    <div class="row g-3">
+                        <div class="col-6">
+                            <label class="text-muted small text-uppercase">Aktualny próg FTP</label>
+                            <div class="h3 fw-bold text-info mb-0 mt-1 tabular-nums">
+                                @(Model.CurrentFtp > 0 ? $"{Model.CurrentFtp} W" : "Brak")
                             </div>
-                        }
+                        </div>
+                        <div class="col-6">
+                            <label class="text-muted small text-uppercase">Aktualna masa</label>
+                            <div class="h3 fw-bold text-white mb-0 mt-1 tabular-nums">
+                                @(Model.WeightKg > 0 ? $"{Model.WeightKg} kg" : "Brak")
+                            </div>
+                        </div>
                     </div>
 
-                    <hr class="border-subtle my-4" />
-
-                    <form asp-action="UpdateWeight" method="post">
-                        <label class="form-label text-white fw-semibold small">Masa ciała (kg)</label>
-                        <div class="input-group mb-2">
-                            <input type="number" step="0.1" name="weightKg" value="@Model.WeightKg" class="form-control bg-dark text-white border-subtle tabular-nums" required />
-                            <button class="btn btn-outline-info px-3" type="submit">Zapisz wagę</button>
+                    @if (Model.CurrentFtp > 0 && Model.WeightKg > 0)
+                    {
+                        <div class="mt-3">
+                            <span class="badge bg-warning bg-opacity-10 text-warning border border-warning border-opacity-25 tabular-nums fw-semibold fs-6 px-3 py-2">
+                                <i class="bi bi-lightning me-1"></i>@Math.Round(Model.CurrentFtp / Model.WeightKg, 2) W/kg
+                            </span>
                         </div>
-                        <small class="text-muted">Wykorzystywana do przeliczania wskaźnika W/kg na wykresach i treningach.</small>
+                    }
+                </div>
+            </div>
+
+            <!-- Dodaj nowy pomiar wagi -->
+            <div class="card mb-4">
+                <div class="card-header py-3">
+                    <span class="text-white fw-bold d-flex align-items-center">
+                        <i class="bi bi-speedometer2 text-info me-2"></i>Wprowadź pomiar masy ciała
+                    </span>
+                </div>
+                <div class="card-body">
+                    <form asp-action="AddWeight" method="post">
+                        <div class="mb-3">
+                            <label class="form-label text-white small fw-semibold">Masa ciała [kg]</label>
+                            <input type="number" step="0.1" name="weightKg" value="@Model.WeightKg" min="35" max="200" class="form-control bg-dark text-white border-subtle tabular-nums" required />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label text-white small fw-semibold">Data pomiaru</label>
+                            <input type="date" name="effectiveDate" value="@DateTime.Today.ToString("yyyy-MM-dd")" max="@DateTime.Today.ToString("yyyy-MM-dd")" class="form-control bg-dark text-white border-subtle" required />
+                            <small class="text-muted d-block mt-1">Używana do historycznego wyznaczania profilu W/kg w szczytach mocy.</small>
+                        </div>
+                        <button type="submit" class="btn btn-outline-info w-100 py-2 fw-semibold">
+                            <i class="bi bi-save me-1"></i> Zapisz wagę
+                        </button>
                     </form>
                 </div>
             </div>
@@ -86,10 +109,10 @@
                         </div>
                         <div class="mb-3">
                             <label class="form-label text-white small fw-semibold">Obowiązuje od daty</label>
-                            <input type="date" name="effectiveDate" value="@Model.NewFtpEffectiveDate.ToString("yyyy-MM-dd")" class="form-control bg-dark text-white border-subtle" required />
+                            <input type="date" name="effectiveDate" value="@Model.NewFtpEffectiveDate.ToString("yyyy-MM-dd")" max="@DateTime.Today.ToString("yyyy-MM-dd")" class="form-control bg-dark text-white border-subtle" required />
                             <small class="text-muted d-block mt-1">Treningi od tej daty automatycznie użyją tej wartości do obliczeń IF i TSS.</small>
                         </div>
-                        <button type="submit" class="btn btn-info text-dark fw-bold w-100 py-2">
+                        <button type="submit" class="btn btn-outline-info w-100 py-2 fw-semibold">
                             <i class="bi bi-check2-all me-1"></i> Zapisz i przelicz historię
                         </button>
                     </form>
@@ -97,14 +120,80 @@
             </div>
         </div>
 
-        <!-- Prawa kolumna: Oś czasu FTP -->
+        <!-- Prawa kolumna: Tabele historii (Waga i FTP) -->
         <div class="col-lg-7">
-            <div class="card h-100">
+            <!-- Historia pomiarów wagi -->
+            <div class="card mb-4">
                 <div class="card-header py-3 d-flex justify-content-between align-items-center">
                     <span class="text-white fw-bold d-flex align-items-center">
-                        <i class="bi bi-clock-history text-info me-2"></i>Historia zmian FTP
+                        <i class="bi bi-activity text-info me-2"></i>Historia masy ciała
                     </span>
-                    <span class="badge bg-secondary bg-opacity-25 text-light border border-secondary border-opacity-25">@Model.FtpHistory.Count wpisów</span>
+                    <span class="badge bg-secondary bg-opacity-25 text-light border border-secondary border-opacity-25">
+                        @Model.WeightHistory.Count wpisów
+                    </span>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead>
+                                <tr class="small text-muted text-uppercase" style="letter-spacing: 0.05em;">
+                                    <th class="ps-3 py-3">Data pomiaru</th>
+                                    <th class="py-3">Masa ciała</th>
+                                    <th class="text-end pe-3 py-3">Akcje</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @{
+                                    var canDeleteWeight = Model.WeightHistory.Count > 1;
+                                }
+                                @foreach (var entry in Model.WeightHistory)
+                                {
+                                    <tr>
+                                        <td class="text-nowrap text-muted ps-3 tabular-nums">@entry.EffectiveDate.ToString("yyyy-MM-dd")</td>
+                                        <td><strong class="text-white tabular-nums">@entry.WeightKg kg</strong></td>
+                                        <td class="text-end text-nowrap pe-3">
+                                            @if (canDeleteWeight)
+                                            {
+                                                <form asp-action="DeleteWeight" method="post" class="d-inline" onsubmit="return confirm('Usunąć ten pomiar wagi?');">
+                                                    <input type="hidden" name="id" value="@entry.Id" />
+                                                    <button type="submit" class="btn btn-sm btn-outline-danger py-1 px-2" title="Usuń wpis">
+                                                        <i class="bi bi-trash3"></i>
+                                                    </button>
+                                                </form>
+                                            }
+                                            else
+                                            {
+                                                <button type="button" class="btn btn-sm btn-outline-secondary py-1 px-2 opacity-50" disabled title="Musi pozostać co najmniej jeden wpis masy ciała">
+                                                    <i class="bi bi-trash3"></i>
+                                                </button>
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                                @if (!Model.WeightHistory.Any())
+                                {
+                                    <tr>
+                                        <td colspan="3" class="text-center py-4 text-muted">
+                                            <i class="bi bi-inbox fs-3 d-block mb-2 opacity-50"></i>
+                                            Brak zarejestrowanej historii pomiarów wagi.
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Historia zmian FTP -->
+            <div class="card">
+                <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                    <span class="text-white fw-bold d-flex align-items-center">
+                        <i class="bi bi-clock-history text-warning me-2"></i>Historia zmian FTP
+                    </span>
+                    <span class="badge bg-secondary bg-opacity-25 text-light border border-secondary border-opacity-25">
+                        @Model.FtpHistory.Count wpisów
+                    </span>
                 </div>
                 <div class="card-body p-0">
                     <div class="table-responsive">
@@ -118,6 +207,9 @@
                                 </tr>
                             </thead>
                             <tbody>
+                                @{
+                                    var canDeleteFtp = Model.FtpHistory.Count > 1;
+                                }
                                 @foreach (var entry in Model.FtpHistory)
                                 {
                                     <tr>
@@ -134,20 +226,29 @@
                                             }
                                         </td>
                                         <td class="text-end text-nowrap pe-3">
-                                            <form asp-action="DeleteFtp" method="post" class="d-inline" onsubmit="return confirm('Usunąć ten próg FTP? Wszystkie powiązane treningi zostaną przeliczone.');">
-                                                <input type="hidden" name="id" value="@entry.Id" />
-                                                <button type="submit" class="btn btn-sm btn-outline-danger py-1 px-2" title="Usuń wpis">
+                                            @if (canDeleteFtp)
+                                            {
+                                                <form asp-action="DeleteFtp" method="post" class="d-inline" onsubmit="return confirm('Usunąć ten próg FTP? Wszystkie powiązane treningi zostaną przeliczone.');">
+                                                    <input type="hidden" name="id" value="@entry.Id" />
+                                                    <button type="submit" class="btn btn-sm btn-outline-danger py-1 px-2" title="Usuń wpis">
+                                                        <i class="bi bi-trash3"></i>
+                                                    </button>
+                                                </form>
+                                            }
+                                            else
+                                            {
+                                                <button type="button" class="btn btn-sm btn-outline-secondary py-1 px-2 opacity-50" disabled title="Musi pozostać co najmniej jeden wpis FTP">
                                                     <i class="bi bi-trash3"></i>
                                                 </button>
-                                            </form>
+                                            }
                                         </td>
                                     </tr>
                                 }
                                 @if (!Model.FtpHistory.Any())
                                 {
                                     <tr>
-                                        <td colspan="4" class="text-center py-5 text-muted">
-                                            <i class="bi bi-inbox fs-2 d-block mb-2 opacity-50"></i>
+                                        <td colspan="4" class="text-center py-4 text-muted">
+                                            <i class="bi bi-inbox fs-3 d-block mb-2 opacity-50"></i>
                                             Brak zarejestrowanej historii progów FTP.
                                         </td>
                                     </tr>
