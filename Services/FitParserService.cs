@@ -28,6 +28,7 @@ public class FitParserService : IFitParserService
 
         var rawRecords = new List<ActivityRecord>();
         var startTime = DateTime.UtcNow;
+        int? totalWorkKj = null;
         int totalTimerTime = 0;
         decimal totalDistance = 0;
         int totalAscent = 0;
@@ -110,13 +111,19 @@ public class FitParserService : IFitParserService
                 totalAscent = (int)sessionMesg.GetTotalAscent()!.Value;
             }
 
+            var fitWork = sessionMesg.GetTotalWork();
+            if (fitWork.HasValue && fitWork.Value > 0)
+            {
+                totalWorkKj = (int)Math.Round(fitWork.Value / 1000.0);
+            }
+
             sessionAvgHr = sessionMesg.GetAvgHeartRate();
             sessionMaxHr = sessionMesg.GetMaxHeartRate();
 
             var fitSport = sessionMesg.GetSport();
             var fitSubSport = sessionMesg.GetSubSport();
 
-            rawSportName = fitSport.ToString();
+            rawSportName = fitSport?.ToString() ?? "Nieznany";
 
             if (fitSport == Sport.Cycling)
             {
@@ -175,7 +182,8 @@ public class FitParserService : IFitParserService
             FileHash: fileHash,
             AvgHeartRate: sessionAvgHr,
             MaxHeartRate: sessionMaxHr,
-            Records: records
+            Records: records,
+            TotalWorkKj: totalWorkKj
         );
     }
 

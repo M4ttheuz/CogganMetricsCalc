@@ -88,7 +88,7 @@ public class ActivityService : IActivityService
                 NormalizedPower = cogganResult.NormalizedPower,
                 IntensityFactor = cogganResult.IntensityFactor,
                 TrainingStressScore = cogganResult.TrainingStressScore,
-                WorkKj = cogganResult.WorkKj,
+                WorkKj = parsedData.TotalWorkKj ?? cogganResult.WorkKj,
                 AvgPower = cogganResult.AvgPower,
                 MaxPower = cogganResult.MaxPower,
                 AvgHeartRate = parsedData.AvgHeartRate,

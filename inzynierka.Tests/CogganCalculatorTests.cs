@@ -87,4 +87,23 @@ public class CogganCalculatorTests
         peak60s!.Watts.Should().Be(233);
         peak60s.WattsPerKg.Should().Be(3.11m);
     }
+
+    [Fact]
+    public void Calculate_SimulatedSmartRecording_InterpolatesEnergyCorrectly()
+    {
+        // Arrange: Trening 300 sekund na stałej mocy 200 W.
+        // Prawdziwa wykonana praca to: 300 s * 200 W = 60 000 J = 60 kJ.
+        //
+        // Symulacja Smart Recordingu: Garmin zapisał tylko 60 punktów (co 5 sekund),
+        // zamiast pełnych 300 próbek sekundowych:
+        var rawSparseStream = Enumerable.Repeat((int?)200, 60).ToList();
+
+        // Act
+        // 1. Gdybyśmy zsumowali bez wiedzy o czasie: 60 * 200 / 1000 = 12 kJ (błąd!)
+        // 2. Twój kalkulator uwzględniający durationSeconds (300 s):
+        var result = _calculator.Calculate(rawSparseStream, userFtp: 250, durationSeconds: 300);
+
+        // Assert
+        result.WorkKj.Should().Be(60); // 200 W * 300 s / 1000 = 60 kJ
+    }
 }

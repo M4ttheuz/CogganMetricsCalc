@@ -14,7 +14,8 @@ public record ParsedFitData(
     string FileHash,
     int? AvgHeartRate,
     int? MaxHeartRate,
-    List<ActivityRecord> Records
+    List<ActivityRecord> Records,
+    int? TotalWorkKj
 );
 
 public interface IFitParserService

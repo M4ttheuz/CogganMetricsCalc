@@ -6,7 +6,6 @@ public class CogganCalculator : ICogganCalculator
 {
     public CogganCalculationResult Calculate(IReadOnlyList<int?> powerRecords, int userFtp, int durationSeconds)
     {
-        // Wyciągamy sekundy z poprawnym odczytem mocy (brak odczytu/pauza = 0W)
         var cleanPower = powerRecords.Select(p => p ?? 0).ToList();
 
         if (cleanPower.Count == 0 || cleanPower.All(p => p == 0))
@@ -17,8 +16,8 @@ public class CogganCalculator : ICogganCalculator
         int avgPower = (int)Math.Round(cleanPower.Average());
         int maxPower = cleanPower.Max();
 
-        // Wykonana praca: suma watów przez sekundy = dżule, dzielimy przez 1000 na kJ
-        int workKj = (int)Math.Round(cleanPower.Sum() / 1000.0);
+        double effectiveDuration = durationSeconds > 0 ? durationSeconds : cleanPower.Count;
+        int workKj = (int)Math.Round((avgPower * effectiveDuration) / 1000.0);
 
         // 1. Obliczanie średniej kroczącej 30s
         if (cleanPower.Count < 30)
@@ -53,7 +52,6 @@ public class CogganCalculator : ICogganCalculator
 
             // Wzór Coggana: TSS = (s * NP * IF) / (FTP * 3600) * 100
             // Jeśli durationSeconds nie zostało przekazane, używamy długości strumienia próbek
-            double effectiveDuration = durationSeconds > 0 ? durationSeconds : cleanPower.Count;
             double tssVal = (effectiveDuration * np * ifVal) / (userFtp * 3600.0) * 100.0;
             tss = Math.Round((decimal)tssVal, 1);
         }
