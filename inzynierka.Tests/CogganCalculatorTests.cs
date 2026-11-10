@@ -106,4 +106,88 @@ public class CogganCalculatorTests
         // Assert
         result.WorkKj.Should().Be(60); // 200 W * 300 s / 1000 = 60 kJ
     }
+
+    [Fact]
+    public void ClassifyPhenotype_DominantSprint_ClassifiedAsSprinter()
+    {
+        // Arrange: Wybitna moc 5s (22 W/kg -> Score 5) przy przeciętnym progu FTP (3.0 W/kg -> Score 2)
+        double wkg5s = 22.0;
+        double wkg1m = 7.5;
+        double wkg5m = 3.8;
+        double ftpWkg = 3.0;
+
+        // Act
+        var result = _calculator.ClassifyPhenotype(wkg5s, wkg1m, wkg5m, ftpWkg);
+
+        // Assert
+        result.PhenotypeName.Should().Be("Sprinter");
+        result.BadgeColor.Should().Be("danger");
+        result.SprintScore.Should().Be(5);
+    }
+
+    [Fact]
+    public void ClassifyPhenotype_DominantThreshold_ClassifiedAsClimberOrTimeTrialist()
+    {
+        // Arrange: Bardzo wysoki próg FTP (5.2 W/kg -> Score 4) przy niskim sprincie (12.0 W/kg -> Score 1)
+        double wkg5s = 12.0;
+        double wkg1m = 7.0;
+        double wkg5m = 5.0;
+        double ftpWkg = 5.2;
+
+        // Act
+        var result = _calculator.ClassifyPhenotype(wkg5s, wkg1m, wkg5m, ftpWkg);
+
+        // Assert
+        result.PhenotypeName.Should().Be("Czasowiec / Góral (TT / Climber)");
+        result.BadgeColor.Should().Be("success");
+    }
+
+    [Fact]
+    public void ClassifyPhenotype_StrongOneAndFiveMinutePower_ClassifiedAsPuncheur()
+    {
+        // Arrange: Wybitne 1 min (Score 4) i 5 min (Score 3) z umiarkowanym progiem (Score 2) i sprintem (Score 2)
+        double wkg5s = 13.0;
+        double wkg1m = 9.8;
+        double wkg5m = 5.0;
+        double ftpWkg = 3.2;
+
+        // Act
+        var result = _calculator.ClassifyPhenotype(wkg5s, wkg1m, wkg5m, ftpWkg);
+
+        // Assert
+        result.PhenotypeName.Should().Be("Puncheur / Pursuiter");
+        result.BadgeColor.Should().Be("warning text-dark");
+    }
+
+    [Fact]
+    public void ClassifyPhenotype_BalancedProfile_ClassifiedAsAllRounder()
+    {
+        // Arrange: Zbalansowane parametry bez skrajnych dysproporcji
+        double wkg5s = 15.0;
+        double wkg1m = 7.5;
+        double wkg5m = 4.0;
+        double ftpWkg = 3.2;
+
+        // Act
+        var result = _calculator.ClassifyPhenotype(wkg5s, wkg1m, wkg5m, ftpWkg);
+
+        // Assert
+        result.PhenotypeName.Should().Be("Wszechstronny (All-Rounder)");
+        result.BadgeColor.Should().Be("primary");
+    }
+
+    [Fact]
+    public void Calculate_UserFtpIsZero_DoesNotThrowDivideByZeroAndReturnsNullTssAndIf()
+    {
+        // Arrange: Użytkownik dopiero założył konto i nie wpisał jeszcze FTP (wartość 0)
+        IReadOnlyList<int?> powerStream = Enumerable.Repeat((int?)200, 1200).ToList();
+
+        // Act
+        var result = _calculator.Calculate(powerStream, userFtp: 0, durationSeconds: 1200);
+
+        // Assert: Brak błędu dzielenia przez zero; NP i moc wyliczone, a IF i TSS to null
+        result.NormalizedPower.Should().Be(200);
+        result.IntensityFactor.Should().BeNull();
+        result.TrainingStressScore.Should().BeNull();
+    }
 }

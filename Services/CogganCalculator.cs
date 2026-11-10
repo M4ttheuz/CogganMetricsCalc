@@ -190,8 +190,6 @@ public class CogganCalculator : ICogganCalculator
 
     public PhenotypeViewModel ClassifyPhenotype(double wkg5s, double wkg1m, double wkg5m, double ftpWkg)
     {
-        // Standaryzacja punktowa (1 = Początkujący, 5 = Elita/World Class)
-        // Oparta na tabelach Power Profiling Coggana dla mężczyzn
         int Score(double val, double min, double max)
         {
             if (val <= min) return 1;
@@ -208,29 +206,24 @@ public class CogganCalculator : ICogganCalculator
         string desc;
         string badge;
 
-        // Reguły fenotypów na podstawie kształtu krzywej (profil Coggana):
-        // 1. Sprinter: dominacja 5s i 1m nad FTP
         if (sprint >= threshold + 2 && sprint >= 3)
         {
             name = "Sprinter";
             desc = "Wybitna moc neuromięśniowa (5s) i beztlenowa. Twoją siłą są dynamiczne zrywy i finisze z płaskich końcówek.";
             badge = "danger";
         }
-        // 2. Pursuiter / Puncheur: dominacja 1m i 5m nad progiem i sprintem
         else if (anaerobic >= threshold + 1 && vo2 >= threshold)
         {
             name = "Puncheur / Pursuiter";
             desc = "Wysoka tolerancja kwasu mlekowego i mocne VO2max (1-5 min). Idealny profil na krótkie, strome ścianki i dynamiczne ataki.";
             badge = "warning text-dark";
         }
-        // 3. Time Trialist / Climber: dominacja progu tlenowego (FTP) nad sprintem
         else if (threshold >= sprint + 1 || (threshold >= 3 && sprint <= threshold))
         {
             name = "Czasowiec / Góral (TT / Climber)";
             desc = "Wysoki próg FTP i zdolność do wielominutowej, jednostajnej jazdy na wysokim procencie VO2max. Słabszy finisz z kreski, ale wysoki silnik tlenowy.";
             badge = "success";
         }
-        // 4. All-Rounder: zrównoważony profil na wszystkich odcinkach
         else
         {
             name = "Wszechstronny (All-Rounder)";
