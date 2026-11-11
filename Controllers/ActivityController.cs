@@ -124,10 +124,6 @@ public class ActivityController : Controller
             })
             .ToListAsync();
 
-        var user = await _context.Users
-            .AsNoTracking()
-            .FirstOrDefaultAsync(u => u.Id == CurrentUserId);
-
         var currentFtp = await _context.UserFtpHistories
             .AsNoTracking()
             .Where(f => f.UserId == CurrentUserId)
@@ -135,10 +131,17 @@ public class ActivityController : Controller
             .Select(f => f.FtpValue)
             .FirstOrDefaultAsync();
 
+        var currentWeight = await _context.UserWeightHistories
+            .AsNoTracking()
+            .Where(w => w.UserId == CurrentUserId)
+            .OrderByDescending(w => w.EffectiveDate)
+            .Select(w => w.WeightKg)
+            .FirstOrDefaultAsync();
+
         var vm = new DashboardViewModel
         {
             CurrentFtp = currentFtp,
-            WeightKg = user?.WeightKg ?? 0m,
+            WeightKg = currentWeight > 0 ? currentWeight : 70m,
             TodayCtl = ctl,
             TodayAtl = atl,
             TodayTsb = tsb,
@@ -331,11 +334,14 @@ public class ActivityController : Controller
     [HttpGet]
     public async Task<IActionResult> Phenotype([FromServices] ICogganCalculator calculator)
     {
-        var user = await _context.Users
+        var weight = await _context.UserWeightHistories
             .AsNoTracking()
-            .FirstOrDefaultAsync(u => u.Id == CurrentUserId);
+            .Where(w => w.UserId == CurrentUserId)
+            .OrderByDescending(w => w.EffectiveDate)
+            .Select(w => w.WeightKg)
+            .FirstOrDefaultAsync();
 
-        var weight = user?.WeightKg ?? 70m;
+        if (weight <= 0) weight = 70m;
 
         var currentFtp = await _context.UserFtpHistories
             .AsNoTracking()
@@ -357,10 +363,10 @@ public class ActivityController : Controller
         double max1m = peaks.FirstOrDefault(p => p.Duration == 60)?.MaxWatts ?? 0;
         double max5m = peaks.FirstOrDefault(p => p.Duration == 300)?.MaxWatts ?? 0;
 
-        double wkg5s = weight > 0 ? max5s / (double)weight : 0;
-        double wkg1m = weight > 0 ? max1m / (double)weight : 0;
-        double wkg5m = weight > 0 ? max5m / (double)weight : 0;
-        double ftpWkg = weight > 0 ? (double)currentFtp / (double)weight : 0;
+        double wkg5s = max5s / (double)weight;
+        double wkg1m = max1m / (double)weight;
+        double wkg5m = max5m / (double)weight;
+        double ftpWkg = (double)currentFtp / (double)weight;
 
         var vm = calculator.ClassifyPhenotype(wkg5s, wkg1m, wkg5m, ftpWkg);
         return View(vm);

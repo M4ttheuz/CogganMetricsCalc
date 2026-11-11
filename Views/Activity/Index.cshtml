@@ -1,21 +1,23 @@
 ﻿@model inzynierka.Models.ViewModels.DashboardViewModel
 @{
     ViewData["Title"] = "Pulpit główny";
+    var totalHours = (int)TimeSpan.FromSeconds(Model.WeeklyDurationSeconds).TotalHours;
+    var minutes = TimeSpan.FromSeconds(Model.WeeklyDurationSeconds).Minutes;
 }
 
-<div class="container-fluid px-0">
+<div class="container-fluid px-0 py-2">
     @if (TempData["Success"] != null)
     {
-        <div class="alert alert-success alert-dismissible fade show border-0 shadow-sm mb-4" role="alert">
-            <i class="bi bi-check-circle-fill me-2"></i> @TempData["Success"]
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        <div class="alert alert-success alert-dismissible fade show border-0 shadow-sm mb-4 bg-success bg-opacity-25 text-white" role="alert">
+            <i class="bi bi-check-circle-fill me-2 text-success"></i> @TempData["Success"]
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="alert"></button>
         </div>
     }
     @if (TempData["Error"] != null)
     {
-        <div class="alert alert-danger alert-dismissible fade show border-0 shadow-sm mb-4" role="alert">
-            <i class="bi bi-exclamation-triangle-fill me-2"></i> @TempData["Error"]
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        <div class="alert alert-danger alert-dismissible fade show border-0 shadow-sm mb-4 bg-danger bg-opacity-25 text-white" role="alert">
+            <i class="bi bi-exclamation-triangle-fill me-2 text-danger"></i> @TempData["Error"]
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="alert"></button>
         </div>
     }
 
@@ -23,77 +25,79 @@
     <div class="row g-3 mb-4">
         <!-- FTP -->
         <div class="col-xl-3 col-sm-6">
-            <div class="card border-0 shadow-sm h-100 p-3">
+            <div class="card h-100 p-3">
                 <div class="d-flex justify-content-between align-items-start">
                     <div>
-                        <span class="text-muted small fw-semibold text-uppercase">Próg FTP</span>
-                        <h3 class="fw-bold mb-0 mt-1 text-dark">
+                        <div class="metric-label">Próg FTP</div>
+                        <h3 class="fw-bold mb-0 mt-1 text-white tabular-nums">
                             @(Model.CurrentFtp > 0 ? $"{Model.CurrentFtp} W" : "—")
                         </h3>
                     </div>
-                    <span class="badge bg-primary bg-opacity-10 text-primary p-2 rounded">
-                        <i class="bi bi-lightning-charge-fill fs-5"></i>
-                    </span>
+                    <div class="kpi-icon bg-warning bg-opacity-10 text-warning">
+                        <i class="bi bi-lightning-charge-fill"></i>
+                    </div>
                 </div>
-                <div class="mt-2 text-muted small">
+                <div class="mt-3 text-muted small d-flex align-items-center">
                     @if (Model.WeightKg > 0 && Model.CurrentFtp > 0)
                     {
-                        <span><strong>@Math.Round((decimal)Model.CurrentFtp / Model.WeightKg, 2)</strong> W/kg (@Model.WeightKg kg)</span>
+                        <span class="badge bg-warning bg-opacity-10 text-warning me-2 fw-bold tabular-nums">
+                            @Math.Round((decimal)Model.CurrentFtp / Model.WeightKg, 2) W/kg
+                        </span>
+                        <span>(@Model.WeightKg kg)</span>
                     }
                     else
                     {
-                        <span>Uzupełnij wagę w profilu</span>
+                        <span><i class="bi bi-info-circle me-1"></i>Uzupełnij wagę w profilu</span>
                     }
                 </div>
             </div>
-
         </div>
 
         <!-- CTL / Fitness -->
         <div class="col-xl-3 col-sm-6">
-            <div class="card border-0 shadow-sm h-100 p-3">
+            <div class="card h-100 p-3">
                 <div class="d-flex justify-content-between align-items-start">
                     <div>
-                        <span class="text-muted small fw-semibold text-uppercase">Forma (CTL)</span>
-                        <h3 class="fw-bold mb-0 mt-1 text-primary">@Model.TodayCtl</h3>
+                        <div class="metric-label">Forma (CTL)</div>
+                        <h3 class="fw-bold mb-0 mt-1 text-info tabular-nums">@Model.TodayCtl</h3>
                     </div>
-                    <span class="badge bg-primary bg-opacity-10 text-primary p-2 rounded">
-                        <i class="bi bi-graph-up-arrow fs-5"></i>
-                    </span>
+                    <div class="kpi-icon bg-info bg-opacity-10 text-info">
+                        <i class="bi bi-graph-up-arrow"></i>
+                    </div>
                 </div>
-                <div class="mt-2 text-muted small">Średnie obciążenie z 42 dni</div>
+                <div class="mt-3 text-muted small">Średnie obciążenie z 42 dni</div>
             </div>
         </div>
 
         <!-- ATL / Fatigue -->
         <div class="col-xl-3 col-sm-6">
-            <div class="card border-0 shadow-sm h-100 p-3">
+            <div class="card h-100 p-3">
                 <div class="d-flex justify-content-between align-items-start">
                     <div>
-                        <span class="text-muted small fw-semibold text-uppercase">Zmęczenie (ATL)</span>
-                        <h3 class="fw-bold mb-0 mt-1 text-danger">@Model.TodayAtl</h3>
+                        <div class="metric-label">Zmęczenie (ATL)</div>
+                        <h3 class="fw-bold mb-0 mt-1 text-danger tabular-nums">@Model.TodayAtl</h3>
                     </div>
-                    <span class="badge bg-danger bg-opacity-10 text-danger p-2 rounded">
-                        <i class="bi bi-activity fs-5"></i>
-                    </span>
+                    <div class="kpi-icon bg-danger bg-opacity-10 text-danger">
+                        <i class="bi bi-activity"></i>
+                    </div>
                 </div>
-                <div class="mt-2 text-muted small">Krótkoterminowy bodziec (7 dni)</div>
+                <div class="mt-3 text-muted small">Krótkoterminowy bodziec (7 dni)</div>
             </div>
         </div>
 
         <!-- TSB / Freshness -->
         <div class="col-xl-3 col-sm-6">
-            <div class="card border-0 shadow-sm h-100 p-3">
+            <div class="card h-100 p-3">
                 <div class="d-flex justify-content-between align-items-start">
                     <div>
-                        <span class="text-muted small fw-semibold text-uppercase">Balans (TSB)</span>
-                        <h3 class="fw-bold mb-0 mt-1 @(Model.TodayTsb >= 0 ? "text-success" : "text-warning")">
+                        <div class="metric-label">Balans (TSB)</div>
+                        <h3 class="fw-bold mb-0 mt-1 tabular-nums @(Model.TodayTsb >= 0 ? "text-success" : "text-warning")">
                             @(Model.TodayTsb > 0 ? "+" : "")@Model.TodayTsb
                         </h3>
                     </div>
-                    <span class="badge @Model.FormBadgeClass px-2 py-1 small">@Model.FormStatus</span>
+                    <span class="badge @Model.FormBadgeClass px-2 py-1 small rounded-pill">@Model.FormStatus</span>
                 </div>
-                <div class="mt-2 text-muted small">CTL &minus; ATL (Gotowość startowa)</div>
+                <div class="mt-3 text-muted small">CTL − ATL (Gotowość startowa)</div>
             </div>
         </div>
     </div>
@@ -103,35 +107,38 @@
         <!-- LEWA KOLUMNA: PODSUMOWANIE TYGODNIA I IMPORT -->
         <div class="col-lg-4">
             <!-- Skrót do wgrywania -->
-            <div class="card border-0 shadow-sm mb-4 bg-primary text-white">
+            <div class="card upload-cta-card mb-4 text-white">
                 <div class="card-body p-4">
-                    <h5 class="fw-bold mb-1">Masowy import sesji</h5>
+                    <div class="d-flex align-items-center mb-2">
+                        <i class="bi bi-file-earmark-zip-fill fs-4 me-2 text-white-50"></i>
+                        <h5 class="fw-bold mb-0">Masowy import sesji</h5>
+                    </div>
                     <p class="small text-white-50 mb-3">Wgraj paczkę plików .fit, aby zaktualizować krzywe i statystyki.</p>
-                    <a asp-action="Upload" class="btn btn-light text-primary fw-semibold w-100">
+                    <a asp-action="Upload" class="btn btn-light text-primary fw-bold w-100 py-2 shadow-sm">
                         <i class="bi bi-cloud-arrow-up-fill me-1"></i> Wgraj treningi
                     </a>
                 </div>
             </div>
 
             <!-- Podsumowanie 7 dni -->
-            <div class="card border-0 shadow-sm">
-                <div class="card-header bg-white py-3 border-0">
-                    <h6 class="fw-bold mb-0 text-dark">
-                        <i class="bi bi-calendar-check me-2 text-primary"></i>Ostatnie 7 dni
+            <div class="card">
+                <div class="card-header py-3">
+                    <h6 class="fw-bold mb-0 text-white">
+                        <i class="bi bi-calendar-check me-2 text-info"></i>Ostatnie 7 dni
                     </h6>
                 </div>
-                <div class="card-body pt-0">
-                    <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+                <div class="card-body pt-1">
+                    <div class="d-flex justify-content-between align-items-center py-3 border-bottom">
                         <span class="text-muted small"><i class="bi bi-fire text-danger me-2"></i>Suma TSS</span>
-                        <span class="fw-bold">@Model.WeeklyTss</span>
+                        <span class="fw-bold tabular-nums">@Model.WeeklyTss</span>
                     </div>
-                    <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+                    <div class="d-flex justify-content-between align-items-center py-3 border-bottom">
                         <span class="text-muted small"><i class="bi bi-signpost-2 text-success me-2"></i>Dystans</span>
-                        <span class="fw-bold">@Model.WeeklyDistanceKm km</span>
+                        <span class="fw-bold tabular-nums">@Model.WeeklyDistanceKm km</span>
                     </div>
-                    <div class="d-flex justify-content-between align-items-center py-2">
+                    <div class="d-flex justify-content-between align-items-center pt-3 pb-1">
                         <span class="text-muted small"><i class="bi bi-stopwatch text-warning me-2"></i>Czas w siodle</span>
-                        <span class="fw-bold">@TimeSpan.FromSeconds(Model.WeeklyDurationSeconds).ToString(@"hh\:mm") h</span>
+                        <span class="fw-bold tabular-nums">@($"{totalHours}h {minutes:D2}m")</span>
                     </div>
                 </div>
             </div>
@@ -139,20 +146,20 @@
 
         <!-- PRAWA KOLUMNA: OSTATNIE AKTYWNOŚCI -->
         <div class="col-lg-8">
-            <div class="card border-0 shadow-sm">
-                <div class="card-header bg-white py-3 border-0 d-flex justify-content-between align-items-center">
-                    <h6 class="fw-bold mb-0 text-dark">
-                        <i class="bi bi-clock-history me-2 text-primary"></i>Ostatnie sesje
+            <div class="card">
+                <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                    <h6 class="fw-bold mb-0 text-white">
+                        <i class="bi bi-clock-history me-2 text-info"></i>Ostatnie sesje
                     </h6>
-                    <a asp-action="All" class="btn btn-sm btn-outline-primary fw-semibold">
-                        Wszystkie aktywności &rarr;
+                    <a asp-action="All" class="btn btn-sm btn-outline-info fw-semibold">
+                        Wszystkie aktywności →
                     </a>
                 </div>
-                <div class="card-body pt-0">
+                <div class="card-body pt-2">
                     @if (!Model.RecentActivities.Any())
                     {
                         <div class="text-center py-5 text-muted">
-                            <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+                            <i class="bi bi-inbox fs-1 d-block mb-2 opacity-50"></i>
                             Brak zarejestrowanych treningów. Użyj przycisku importu, aby dodać pierwsze pliki.
                         </div>
                     }
@@ -161,33 +168,33 @@
                         <div class="list-group list-group-flush">
                             @foreach (var act in Model.RecentActivities)
                             {
-                                <div class="list-group-item px-0 py-3 border-bottom">
+                                <div class="list-group-item px-3 py-3 border-bottom">
                                     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
                                         <div>
-                                            <a asp-action="Details" asp-route-id="@act.Id" class="text-decoration-none text-dark fw-bold">
+                                            <a asp-action="Details" asp-route-id="@act.Id" class="text-decoration-none text-white fw-bold">
                                                 @act.Title
                                             </a>
-                                            <div class="text-muted small mt-1">
-                                                <i class="bi bi-calendar3 me-1"></i> @act.StartTime.ToString("dd.MM.yyyy HH:mm") &bull;
-                                                <i class="bi bi-stopwatch ms-1 me-1"></i> @TimeSpan.FromSeconds(act.DurationSeconds).ToString(@"hh\:mm\:ss") &bull;
+                                            <div class="text-muted small mt-1 tabular-nums">
+                                                <i class="bi bi-calendar3 me-1"></i> @act.StartTime.ToString("dd.MM.yyyy HH:mm") •
+                                                <i class="bi bi-stopwatch ms-1 me-1"></i> @TimeSpan.FromSeconds(act.DurationSeconds).ToString(@"hh\:mm\:ss") •
                                                 <i class="bi bi-signpost ms-1 me-1"></i> @(Math.Round(act.DistanceMeters / 1000m, 1)) km
                                             </div>
                                         </div>
 
-                                        <div class="d-flex align-items-center gap-2">
-                                            <div class="badge bg-light text-dark border p-2 text-center activity-metric-badge activity-metric-badge--np">
+                                        <div class="d-flex align-items-center gap-2 ms-auto">
+                                            <div class="badge p-2 text-center activity-metric-badge activity-metric-badge--np">
                                                 <div class="text-muted activity-metric-label">NP</div>
-                                                <div class="fw-bold text-primary">@(act.CogganMetrics?.NormalizedPower?.ToString() ?? "—") W</div>
+                                                <div class="fw-bold text-info mt-1">@(act.CogganMetrics?.NormalizedPower?.ToString() ?? "—") W</div>
                                             </div>
-                                            <div class="badge bg-light text-dark border p-2 text-center activity-metric-badge">
+                                            <div class="badge p-2 text-center activity-metric-badge">
                                                 <div class="text-muted activity-metric-label">TSS</div>
-                                                <div class="fw-bold text-danger">@(act.CogganMetrics?.TrainingStressScore?.ToString("F0") ?? "—")</div>
+                                                <div class="fw-bold text-danger mt-1">@(act.CogganMetrics?.TrainingStressScore?.ToString("F0") ?? "—")</div>
                                             </div>
-                                            <div class="badge bg-light text-dark border p-2 text-center activity-metric-badge">
+                                            <div class="badge p-2 text-center activity-metric-badge">
                                                 <div class="text-muted activity-metric-label">IF</div>
-                                                <div class="fw-bold text-dark">@(act.CogganMetrics?.IntensityFactor?.ToString("F2") ?? "—")</div>
+                                                <div class="fw-bold text-white mt-1">@(act.CogganMetrics?.IntensityFactor?.ToString("F2") ?? "—")</div>
                                             </div>
-                                            <a asp-action="Details" asp-route-id="@act.Id" class="btn btn-sm btn-light border ms-1">
+                                            <a asp-action="Details" asp-route-id="@act.Id" class="btn btn-sm bg-light border ms-1 py-2 px-2 text-muted">
                                                 <i class="bi bi-chevron-right"></i>
                                             </a>
                                         </div>

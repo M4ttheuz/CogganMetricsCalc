@@ -3,50 +3,67 @@
     ViewData["Title"] = "Fenotyp zawodnika";
 }
 
-<div class="container py-4">
+<div class="container-fluid px-0 py-2">
     <div class="row justify-content-center">
         <div class="col-lg-10">
-            <div class="card border-0 shadow-sm mb-4">
-                <div class="card-body p-4 text-center">
-                    <span class="badge bg-@Model.BadgeColor fs-6 px-3 py-2 mb-2">@Model.PhenotypeName</span>
-                    <h2 class="fw-bold mb-2">Fenotyp zawodnika</h2>
+            <!-- KARTA OPISU FENOTYPU -->
+            <div class="card mb-4 text-center p-4">
+                <div class="card-body">
+                    <span class="badge @Model.BadgeColor fs-6 px-3 py-2 mb-3">@Model.PhenotypeName</span>
+                    <h3 class="fw-bold mb-2 text-white">Fenotyp zawodnika</h3>
                     <p class="text-muted mx-auto mb-0 phenotype-description">
                         @Model.Description
                     </p>
                 </div>
             </div>
 
-            <div class="row g-4 mb-4">
+            <!-- KAFELKI W/KG DLA KLUCZOWYCH CZASÓW -->
+            <div class="row g-3 mb-4">
                 <div class="col-md-3 col-6">
-                    <div class="card border-0 shadow-sm text-center p-3">
-                        <small class="text-muted fw-bold">5s (Neuromuskularna)</small>
-                        <h3 class="fw-bold text-dark mt-2 mb-0">@Model.Peak5sWkg <small class="fs-6 text-muted">W/kg</small></h3>
+                    <div class="card text-center p-3 h-100">
+                        <div class="metric-label">5s (Neuromuskularna)</div>
+                        <h3 class="fw-bold text-info mt-2 mb-0 tabular-nums">
+                            @Model.Peak5sWkg <small class="fs-6 fw-normal text-muted">W/kg</small>
+                        </h3>
                     </div>
                 </div>
                 <div class="col-md-3 col-6">
-                    <div class="card border-0 shadow-sm text-center p-3">
-                        <small class="text-muted fw-bold">1 min (Beztlenowa)</small>
-                        <h3 class="fw-bold text-dark mt-2 mb-0">@Model.Peak1mWkg <small class="fs-6 text-muted">W/kg</small></h3>
+                    <div class="card text-center p-3 h-100">
+                        <div class="metric-label">1 min (Beztlenowa)</div>
+                        <h3 class="fw-bold text-info mt-2 mb-0 tabular-nums">
+                            @Model.Peak1mWkg <small class="fs-6 fw-normal text-muted">W/kg</small>
+                        </h3>
                     </div>
                 </div>
                 <div class="col-md-3 col-6">
-                    <div class="card border-0 shadow-sm text-center p-3">
-                        <small class="text-muted fw-bold">5 min (VO2max)</small>
-                        <h3 class="fw-bold text-dark mt-2 mb-0">@Model.Peak5mWkg <small class="fs-6 text-muted">W/kg</small></h3>
+                    <div class="card text-center p-3 h-100">
+                        <div class="metric-label">5 min (VO2max)</div>
+                        <h3 class="fw-bold text-info mt-2 mb-0 tabular-nums">
+                            @Model.Peak5mWkg <small class="fs-6 fw-normal text-muted">W/kg</small>
+                        </h3>
                     </div>
                 </div>
                 <div class="col-md-3 col-6">
-                    <div class="card border-0 shadow-sm text-center p-3">
-                        <small class="text-muted fw-bold">FTP (Próg)</small>
-                        <h3 class="fw-bold text-dark mt-2 mb-0">@Model.FtpWkg <small class="fs-6 text-muted">W/kg</small></h3>
+                    <div class="card text-center p-3 h-100">
+                        <div class="metric-label">FTP (Próg)</div>
+                        <h3 class="fw-bold text-warning mt-2 mb-0 tabular-nums">
+                            @Model.FtpWkg <small class="fs-6 fw-normal text-muted">W/kg</small>
+                        </h3>
                     </div>
                 </div>
             </div>
 
-            <div class="card border-0 shadow-sm p-4 text-center">
-                <h5 class="fw-bold mb-3">Wykres Radarowy Fenotypu</h5>
-                <div class="d-flex justify-content-center phenotype-chart-container">
-                    <canvas id="phenotypeRadarChart" class="phenotype-chart"></canvas>
+            <!-- WYKRES RADAROWY -->
+            <div class="card p-4 text-center">
+                <div class="card-header bg-transparent border-0 pb-0">
+                    <h5 class="fw-bold mb-0 text-white d-flex align-items-center justify-content-center">
+                        <i class="bi bi-diagram-3 text-info me-2"></i>Wykres Radarowy Fenotypu
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex justify-content-center phenotype-chart-container">
+                        <canvas id="phenotypeRadarChart" class="phenotype-chart"></canvas>
+                    </div>
                 </div>
             </div>
         </div>
@@ -56,7 +73,13 @@
 @section Scripts {
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
+        // Globalne ustawienia Chart.js pod ciemny motyw
+        Chart.defaults.color = '#94a3b8';
+        Chart.defaults.borderColor = 'rgba(255, 255, 255, 0.08)';
+        Chart.defaults.font.family = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+
         const ctx = document.getElementById('phenotypeRadarChart').getContext('2d');
+        
         new Chart(ctx, {
             type: 'radar',
             data: {
@@ -65,26 +88,54 @@
                     label: 'Poziom w skali Coggana (1-5)',
                     data: [@Model.SprintScore, @Model.AnaerobicScore, @Model.Vo2MaxScore, @Model.ThresholdScore],
                     fill: true,
-                    backgroundColor: 'rgba(14, 165, 233, 0.25)',
-                    borderColor: 'rgb(14, 165, 233)',
-                    pointBackgroundColor: 'rgb(14, 165, 233)',
-                    pointBorderColor: '#fff',
+                    backgroundColor: 'rgba(56, 189, 248, 0.2)',
+                    borderColor: '#38bdf8',
+                    borderWidth: 2,
+                    pointBackgroundColor: '#38bdf8',
+                    pointBorderColor: '#1e293b',
+                    pointBorderWidth: 2,
+                    pointRadius: 4,
                     pointHoverBackgroundColor: '#fff',
-                    pointHoverBorderColor: 'rgb(14, 165, 233)'
+                    pointHoverBorderColor: '#38bdf8'
                 }]
             },
             options: {
                 responsive: true,
+                maintainAspectRatio: false,
                 scales: {
                     r: {
-                        angleLines: { display: true },
+                        grid: {
+                            color: 'rgba(255, 255, 255, 0.08)'
+                        },
+                        angleLines: {
+                            color: 'rgba(255, 255, 255, 0.08)'
+                        },
+                        pointLabels: {
+                            color: '#f8fafc',
+                            font: {
+                                size: 12,
+                                weight: '600'
+                            }
+                        },
                         suggestedMin: 0,
                         suggestedMax: 5,
-                        ticks: { stepSize: 1, display: false }
+                        ticks: {
+                            stepSize: 1,
+                            display: false // Ukrywamy liczby na osi radialnej dla czystszego wyglądu
+                        }
                     }
                 },
                 plugins: {
-                    legend: { display: false }
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                        titleColor: '#f8fafc',
+                        bodyColor: '#cbd5e1',
+                        borderColor: 'rgba(255, 255, 255, 0.12)',
+                        borderWidth: 1,
+                        padding: 10,
+                        cornerRadius: 8
+                    }
                 }
             }
         });

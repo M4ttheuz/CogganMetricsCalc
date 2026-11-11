@@ -1,22 +1,28 @@
 ﻿@model inzynierka.Models.Entities.Activity
 @{
     ViewData["Title"] = Model.Title;
+
+    var refPeak = Model.PowerPeaks?.FirstOrDefault(p => p.WattsPerKg > 0 && p.Watts > 0);
+    decimal? effectiveWeight = refPeak != null 
+        ? Math.Round((decimal)refPeak.Watts / refPeak.WattsPerKg, 1) 
+        : null;
 }
 
 @section Styles {
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 }
 
-<div>
+<div class="container-fluid px-0 py-2">
+    <!-- NAGŁÓWEK AKTYWNOŚCI -->
     <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
         <div>
-            <a asp-action="All" class="btn btn-sm btn-outline-secondary mb-2">
-                <i class="bi bi-arrow-left"></i> Historia treningów
+            <a asp-action="All" class="btn btn-sm btn-outline-secondary mb-2 px-3 py-1">
+                <i class="bi bi-arrow-left me-1"></i> Historia treningów
             </a>
-            <h2 class="fw-bold mb-0 text-dark">@Model.Title</h2>
+            <h3 class="fw-bold mb-1 text-white">@Model.Title</h3>
             <div class="d-flex align-items-center gap-2 mt-1">
-                <span class="badge bg-dark fw-normal"><i class="bi bi-bicycle me-1"></i>@Model.SportType</span>
-                <small class="text-muted">
+                <span class="badge bg-secondary bg-opacity-25 text-light fw-normal"><i class="bi bi-bicycle me-1"></i>@Model.SportType</span>
+                <small class="text-muted tabular-nums">
                     <i class="bi bi-calendar3 me-1"></i> @Model.StartTime.ToString("dd.MM.yyyy HH:mm")
                 </small>
             </div>
@@ -24,24 +30,25 @@
         <div class="d-flex align-items-center gap-2">
             <form asp-action="Delete" asp-route-id="@Model.Id" method="post" class="d-inline" onsubmit="return confirm('Czy na pewno chcesz bezpowrotnie usunąć ten trening? Wykresy obciążenia i świeżości zostaną automatycznie przeliczone.');">
                 @Html.AntiForgeryToken()
-                <button type="submit" class="btn btn-outline-danger btn-sm px-3 py-2" title="Usuń aktywność">
+                <button type="submit" class="btn btn-outline-danger btn-sm px-3 py-2 fw-semibold" title="Usuń aktywność">
                     <i class="bi bi-trash3 me-1"></i> Usuń aktywność
                 </button>
             </form>
         </div>
     </div>
 
+    <!-- GÓRNE KAFELKI KPI COGGANA -->
     <div class="row g-3 mb-4">
         <div class="col-6 col-lg-3">
-            <div class="metric-tile np-tile shadow-sm">
+            <div class="metric-tile np-tile">
                 <div class="metric-label">Moc znormalizowana (NP)</div>
-                <div class="metric-val text-primary">
-                    @(Model.CogganMetrics?.NormalizedPower?.ToString() ?? "-") <span class="fs-6 fw-normal text-muted">W</span>
+                <div class="metric-val text-info tabular-nums">
+                    @(Model.CogganMetrics?.NormalizedPower?.ToString() ?? "—") <small class="fs-6 fw-normal text-muted">W</small>
                 </div>
-                <div class="metric-sub">
-                    @if (Model.CogganMetrics?.NormalizedPower != null && Model.User?.WeightKg > 0)
+                <div class="metric-sub tabular-nums">
+                    @if (Model.CogganMetrics?.NormalizedPower != null && effectiveWeight > 0)
                     {
-                        <span><strong>@((Model.CogganMetrics.NormalizedPower.Value / Model.User.WeightKg).ToString("F2"))</strong> W/kg</span>
+                        <span class="text-info fw-bold">@((Model.CogganMetrics.NormalizedPower.Value / effectiveWeight.Value).ToString("F2")) W/kg</span>
                     }
                     else
                     {
@@ -52,69 +59,74 @@
         </div>
 
         <div class="col-6 col-lg-3">
-            <div class="metric-tile tss-tile shadow-sm">
+            <div class="metric-tile tss-tile">
                 <div class="metric-label">Stres treningowy</div>
-                <div class="metric-val text-danger">
-                    @(Model.CogganMetrics?.TrainingStressScore?.ToString("F0") ?? "-")
+                <div class="metric-val text-danger tabular-nums">
+                    @(Model.CogganMetrics?.TrainingStressScore?.ToString("F0") ?? "—")
                 </div>
+                <div class="metric-sub">Training Stress Score</div>
             </div>
         </div>
 
         <div class="col-6 col-lg-3">
-            <div class="metric-tile if-tile shadow-sm">
-                <div class="metric-label">Współczynnik intensywności (IF)</div>
-                <div class="metric-val text-warning">
-                    @(Model.CogganMetrics?.IntensityFactor?.ToString("F2") ?? "-")
+            <div class="metric-tile if-tile">
+                <div class="metric-label">Współczynnik intensywności</div>
+                <div class="metric-val text-warning tabular-nums">
+                    @(Model.CogganMetrics?.IntensityFactor?.ToString("F2") ?? "—")
                 </div>
+                <div class="metric-sub">Intensity Factor (IF)</div>
             </div>
         </div>
 
         <div class="col-6 col-lg-3">
-            <div class="metric-tile work-tile shadow-sm">
+            <div class="metric-tile work-tile">
                 <div class="metric-label">Praca wykonana</div>
-                <div class="metric-val text-success">
-                    @(Model.CogganMetrics?.WorkKj?.ToString() ?? "-") <span class="fs-6 fw-normal text-muted">kJ</span>
+                <div class="metric-val text-success tabular-nums">
+                    @(Model.CogganMetrics?.WorkKj?.ToString() ?? "—") <small class="fs-6 fw-normal text-muted">kJ</small>
                 </div>
+                <div class="metric-sub">Wydatek energetyczny</div>
             </div>
         </div>
     </div>
 
-    <div class="card mb-4 border-0 shadow-sm">
-        <div class="card-body py-3">
-            <div class="row row-cols-2 row-cols-md-3 row-cols-lg-6 g-3 text-center">
-                <div>
-                    <div class="text-muted small">Dystans</div>
-                    <div class="fs-5 fw-bold">@(Math.Round(Model.DistanceMeters / 1000m, 1)) km</div>
-                </div>
-                <div>
-                    <div class="text-muted small">Czas jazdy</div>
-                    <div class="fs-5 fw-bold">@TimeSpan.FromSeconds(Model.DurationSeconds).ToString(@"hh\:mm\:ss")</div>
-                </div>
-                <div>
-                    <div class="text-muted small">Przewyższenie</div>
-                    <div class="fs-5 fw-bold">@Model.TotalElevationGain m</div>
-                </div>
-                <div>
-                    <div class="text-muted small">Średnia moc</div>
-                    <div class="fs-5 fw-bold">@(Model.CogganMetrics?.AvgPower?.ToString() ?? "-") W</div>
-                </div>
-                <div>
-                    <div class="text-muted small">Maks. moc</div>
-                    <div class="fs-5 fw-bold">@(Model.CogganMetrics?.MaxPower?.ToString() ?? "-") W</div>
-                </div>
-                <div>
-                    <div class="text-muted small">Średnie tętno</div>
-                    <div class="fs-5 fw-bold">@(Model.CogganMetrics?.AvgHeartRate?.ToString() ?? "-") bpm</div>
-                </div>
+    <!-- PODSUMOWANIE PARAMETRÓW (PASEK) -->
+    <div class="card mb-4 p-3">
+        <div class="row row-cols-2 row-cols-md-3 row-cols-lg-6 g-3 text-center">
+            <div>
+                <div class="text-muted small text-uppercase">Dystans</div>
+                <div class="fs-5 fw-bold text-white tabular-nums mt-1">@(Math.Round(Model.DistanceMeters / 1000m, 1)) km</div>
+            </div>
+            <div>
+                <div class="text-muted small text-uppercase">Czas jazdy</div>
+                <div class="fs-5 fw-bold text-white tabular-nums mt-1">@TimeSpan.FromSeconds(Model.DurationSeconds).ToString(@"hh\:mm\:ss")</div>
+            </div>
+            <div>
+                <div class="text-muted small text-uppercase">Przewyższenie</div>
+                <div class="fs-5 fw-bold text-white tabular-nums mt-1">@Model.TotalElevationGain m</div>
+            </div>
+            <div>
+                <div class="text-muted small text-uppercase">Średnia moc</div>
+                <div class="fs-5 fw-bold text-white tabular-nums mt-1">@(Model.CogganMetrics?.AvgPower?.ToString() ?? "—") W</div>
+            </div>
+            <div>
+                <div class="text-muted small text-uppercase">Maks. moc</div>
+                <div class="fs-5 fw-bold text-white tabular-nums mt-1">@(Model.CogganMetrics?.MaxPower?.ToString() ?? "—") W</div>
+            </div>
+            <div>
+                <div class="text-muted small text-uppercase">Średnie tętno</div>
+                <div class="fs-5 fw-bold text-white tabular-nums mt-1">@(Model.CogganMetrics?.AvgHeartRate?.ToString() ?? "—") bpm</div>
             </div>
         </div>
     </div>
 
+    <!-- KAFELKI REKORDÓW MOCY (PEAKS) -->
     @if (Model.PowerPeaks != null && Model.PowerPeaks.Any())
     {
-        <div class="card mb-4 border-0 shadow-sm">
-            <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
-                <span class="text-dark fw-semibold"><i class="bi bi-lightning-charge-fill text-warning me-1"></i> Moc z wybranych okresów</span>
+        <div class="card mb-4">
+            <div class="card-header py-3">
+                <span class="text-white fw-bold d-flex align-items-center">
+                    <i class="bi bi-lightning-charge-fill text-warning me-2"></i>Moc maksymalna w wybranych okresach
+                </span>
             </div>
             <div class="card-body">
                 <div class="row row-cols-2 row-cols-md-4 row-cols-lg-8 g-2">
@@ -122,10 +134,10 @@
                     {
                         string label = peak.DurationSeconds < 60 ? $"{peak.DurationSeconds}s" : $"{peak.DurationSeconds / 60}m";
                         <div class="col">
-                            <div class="peak-pill shadow-none">
-                                <div class="text-muted small fw-semibold">@label</div>
-                                <div class="fs-5 fw-bold text-dark mb-0">@peak.Watts W</div>
-                                <div class="text-primary small fw-bold">@peak.WattsPerKg.ToString("F2") <span class="fw-normal text-muted peak-watts-per-kg-unit">W/kg</span></div>
+                            <div class="peak-pill">
+                                <div class="text-muted small fw-semibold text-uppercase">@label</div>
+                                <div class="fs-5 fw-bold text-white mb-0 mt-1 tabular-nums">@peak.Watts W</div>
+                                <div class="text-info small fw-bold tabular-nums">@peak.WattsPerKg.ToString("F2") <span class="peak-watts-per-kg-unit">W/kg</span></div>
                             </div>
                         </div>
                     }
@@ -133,11 +145,15 @@
             </div>
         </div>
     }
+
+    <!-- WYKRESY: KRZYWA MOCY ORAZ STREFY -->
     <div class="row g-4 mb-4">
         <div class="col-lg-6">
-            <div class="card h-100 border-0 shadow-sm">
-                <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
-                    <span class="fw-semibold"><i class="bi bi-graph-down text-primary me-1"></i> Krzywa mocy</span>
+            <div class="card h-100">
+                <div class="card-header py-3">
+                    <span class="fw-bold text-white d-flex align-items-center">
+                        <i class="bi bi-graph-down text-info me-2"></i>Krzywa mocy (Power Duration Curve)
+                    </span>
                 </div>
                 <div class="card-body">
                     <div class="chart-container chart-container--short">
@@ -147,9 +163,11 @@
             </div>
         </div>
         <div class="col-lg-6">
-            <div class="card h-100 border-0 shadow-sm">
-                <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
-                    <span class="fw-semibold"><i class="bi bi-bar-chart-steps text-info me-1"></i> Czas w strefach mocy</span>
+            <div class="card h-100">
+                <div class="card-header py-3">
+                    <span class="fw-bold text-white d-flex align-items-center">
+                        <i class="bi bi-bar-chart-steps text-warning me-2"></i>Czas w strefach mocy
+                    </span>
                 </div>
                 <div class="card-body">
                     <div class="chart-container chart-container--short">
@@ -160,20 +178,26 @@
         </div>
     </div>
 
-    <div class="card mb-4 border-0 shadow-sm is-hidden" id="mapCard">
-        <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
-            <span class="fw-semibold"><i class="bi bi-map text-success me-1"></i> Ślad trasy GPS</span>
-            <small class="text-muted"><i class="bi bi-cursor me-1"></i>Przesuwaj kursor nad dolnym wykresem, aby śledzić pozycję na trasie</small>
+    <!-- MAPA GPS -->
+    <div class="card mb-4 is-hidden" id="mapCard">
+        <div class="card-header py-3 d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <span class="fw-bold text-white d-flex align-items-center">
+                <i class="bi bi-map text-success me-2"></i>Ślad trasy GPS
+            </span>
+            <small class="text-muted"><i class="bi bi-cursor me-1"></i>Przesuwaj kursor nad dolnym wykresem telemetrii, aby śledzić pozycję</small>
         </div>
         <div class="card-body p-2">
             <div id="activityMap"></div>
         </div>
     </div>
 
-    <div class="card mb-5 border-0 shadow-sm">
-        <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
-            <span class="fw-semibold"><i class="bi bi-speedometer2 text-danger me-1"></i> Przebieg telemetryczny sesji</span>
-            <small class="text-muted">Niebieski: Moc [W] | Czerwony: Tętno [bpm] | Szary: Profil wysokości [m]</small>
+    <!-- WYKRES TELEMETRII (MOC, HR, WYSOKOŚĆ) -->
+    <div class="card mb-4">
+        <div class="card-header py-3 d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <span class="fw-bold text-white d-flex align-items-center">
+                <i class="bi bi-speedometer2 text-danger me-2"></i>Przebieg telemetryczny sesji
+            </span>
+            <small class="text-muted">Niebieski: Moc [W] | Czerwony: Tętno [bpm]</small>
         </div>
         <div class="card-body">
             <div class="chart-container chart-container--telemetry">
@@ -188,6 +212,11 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
     <script>
+        // Globalne ustawienia Chart.js pod ciemny motyw
+        Chart.defaults.color = '#94a3b8';
+        Chart.defaults.borderColor = 'rgba(255, 255, 255, 0.06)';
+        Chart.defaults.font.family = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+
         document.addEventListener("DOMContentLoaded", async () => {
             const activityId = @Model.Id;
 
@@ -198,6 +227,7 @@
                     fetch(`/Activity/GetTelemetry/${activityId}`)
                 ]);
 
+                // 1. WYKRES STREF MOCY
                 if (zonesRes.ok) {
                     const data = await zonesRes.json();
                     if (data && data.zones && data.zones.length > 0) {
@@ -207,13 +237,13 @@
                         const durations = data.zones.map(z => `${Math.floor(z.seconds / 60)}m ${z.seconds % 60}s`);
 
                         const zoneColors = [
-                            '#94a3b8', // Z1 - Aktywna regeneracja
-                            '#38bdf8', // Z2 - Tlenowa baza
-                            '#22c55e', // Z3 - Tempo
-                            '#eab308', // Z4 - Próg FTP
-                            '#f97316', // Z5 - VO2max
-                            '#ef4444', // Z6 - Pojemność beztlenowa
-                            '#a855f7'  // Z7 - Moc neuromięśniowa
+                            '#94a3b8', // Z1
+                            '#38bdf8', // Z2
+                            '#34d399', // Z3
+                            '#fbbf24', // Z4
+                            '#fb923c', // Z5
+                            '#fb7185', // Z6
+                            '#c084fc'  // Z7
                         ];
 
                         const ctxZones = document.getElementById('zonesChart').getContext('2d');
@@ -234,17 +264,24 @@
                                 scales: {
                                     x: {
                                         grid: { display: false },
-                                        ticks: { font: { weight: '600' } }
+                                        ticks: { color: '#94a3b8', font: { weight: '600' } }
                                     },
                                     y: {
                                         beginAtZero: true,
-                                        ticks: { callback: v => v + '%' },
-                                        grid: { color: 'rgba(0,0,0,0.05)' }
+                                        ticks: { callback: v => v + '%', color: '#94a3b8' },
+                                        grid: { color: 'rgba(255, 255, 255, 0.05)' }
                                     }
                                 },
                                 plugins: {
                                     legend: { display: false },
                                     tooltip: {
+                                        backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                                        titleColor: '#f8fafc',
+                                        bodyColor: '#cbd5e1',
+                                        borderColor: 'rgba(255, 255, 255, 0.12)',
+                                        borderWidth: 1,
+                                        padding: 12,
+                                        cornerRadius: 8,
                                         callbacks: {
                                             title: (items) => `${labels[items[0].dataIndex]} (${ranges[items[0].dataIndex]})`,
                                             label: (ctx) => ` Udział: ${percentages[ctx.dataIndex]}% (${durations[ctx.dataIndex]})`
@@ -256,9 +293,15 @@
                     }
                 }
 
+                // 2. WYKRES KRZYWEJ MOCY (PDC)
                 if (pdcRes.ok) {
                     const pdcData = await pdcRes.json();
                     const ctxPdc = document.getElementById('pdcChart').getContext('2d');
+                    
+                    const pdcGradient = ctxPdc.createLinearGradient(0, 0, 0, 260);
+                    pdcGradient.addColorStop(0, 'rgba(251, 191, 36, 0.25)');
+                    pdcGradient.addColorStop(1, 'rgba(251, 191, 36, 0.0)');
+
                     new Chart(ctxPdc, {
                         type: 'line',
                         data: {
@@ -266,12 +309,12 @@
                             datasets: [{
                                 label: 'Moc maksymalna [W]',
                                 data: pdcData.watts,
-                                borderColor: '#f59e0b',
-                                backgroundColor: 'rgba(245, 158, 11, 0.12)',
+                                borderColor: '#fbbf24',
+                                backgroundColor: pdcGradient,
                                 fill: true,
-                                borderWidth: 2,
+                                borderWidth: 2.2,
                                 tension: 0.25,
-                                pointRadius: 3,
+                                pointRadius: 2,
                                 pointHoverRadius: 6
                             }]
                         },
@@ -279,28 +322,41 @@
                             responsive: true,
                             maintainAspectRatio: false,
                             scales: {
-                                x: { grid: { display: false } },
+                                x: {
+                                    grid: { display: false },
+                                    ticks: { color: '#94a3b8' }
+                                },
                                 y: {
                                     beginAtZero: false,
-                                    title: { display: true, text: 'Moc [W]' },
-                                    grid: { color: 'rgba(0,0,0,0.05)' }
+                                    title: { display: true, text: 'Moc [W]', color: '#94a3b8' },
+                                    ticks: { color: '#94a3b8' },
+                                    grid: { color: 'rgba(255, 255, 255, 0.05)' }
                                 }
                             },
                             plugins: {
                                 legend: { display: false },
-                                tooltip: { callbacks: { label: (ctx) => ` ${ctx.raw} W` } }
+                                tooltip: {
+                                    backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                                    titleColor: '#f8fafc',
+                                    bodyColor: '#cbd5e1',
+                                    borderColor: 'rgba(255, 255, 255, 0.12)',
+                                    borderWidth: 1,
+                                    padding: 12,
+                                    cornerRadius: 8,
+                                    callbacks: { label: (ctx) => ` ${ctx.raw} W` }
+                                }
                             }
                         }
                     });
                 }
 
+                // 3. TELEMETRIA I MAPA GPS
                 if (telemetryRes.ok) {
                     const telemetryData = await telemetryRes.json();
                     if (telemetryData && telemetryData.length > 0) {
                         const labels = telemetryData.map(d => d.time);
                         const powerData = telemetryData.map(d => d.power);
                         const hrData = telemetryData.map(d => d.heartRate > 0 ? d.heartRate : null);
-                        const altitudeData = telemetryData.map(d => d.altitude ?? null);
 
                         const gpsCoords = telemetryData
                             .map((d, index) => ({ lat: d.lat, lng: d.lng, index }))
@@ -315,19 +371,19 @@
 
                             const startPoint = [gpsCoords[0].lat, gpsCoords[0].lng];
                             map = L.map('activityMap').setView(startPoint, 13);
-
-                            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                                maxZoom: 18,
-                                attribution: '© OpenStreetMap contributors'
+                            
+                            L.tileLayer('https://tiles.stadiamaps.com/tiles/stamen_toner_dark/{z}/{x}/{y}{r}.png', {
+                                maxZoom: 20,
+                                attribution: '© <a href="https://stadiamaps.com/">Stadia Maps</a>, © <a href="https://stamen.com/">Stamen Design</a>, © <a href="https://openstreetmap.org">OpenStreetMap</a>'
                             }).addTo(map);
 
                             const latLngs = gpsCoords.map(p => [p.lat, p.lng]);
-                            const polyline = L.polyline(latLngs, { color: '#0284c7', weight: 4, opacity: 0.9 }).addTo(map);
+                            const polyline = L.polyline(latLngs, { color: '#38bdf8', weight: 4, opacity: 0.85 }).addTo(map);
 
                             map.fitBounds(polyline.getBounds(), { padding: [25, 25] });
 
-                            L.circleMarker(latLngs[0], { radius: 6, color: '#15803d', fillColor: '#22c55e', fillOpacity: 1 }).addTo(map).bindPopup("Start");
-                            L.circleMarker(latLngs[latLngs.length - 1], { radius: 6, color: '#b91c1c', fillColor: '#ef4444', fillOpacity: 1 }).addTo(map).bindPopup("Meta");
+                            L.circleMarker(latLngs[0], { radius: 6, color: '#10b981', fillColor: '#34d399', fillOpacity: 1 }).addTo(map).bindPopup("Start");
+                            L.circleMarker(latLngs[latLngs.length - 1], { radius: 6, color: '#ef4444', fillColor: '#fb7185', fillOpacity: 1 }).addTo(map).bindPopup("Meta");
 
                             const customIcon = L.divIcon({
                                 className: 'current-marker-dot',
@@ -348,8 +404,8 @@
                                     {
                                         label: 'Moc (W)',
                                         data: powerData,
-                                        borderColor: '#0284c7',
-                                        backgroundColor: 'rgba(2, 132, 199, 0.1)',
+                                        borderColor: '#38bdf8',
+                                        backgroundColor: 'rgba(56, 189, 248, 0.1)',
                                         fill: false,
                                         borderWidth: 1.5,
                                         pointRadius: 0,
@@ -360,7 +416,7 @@
                                     {
                                         label: 'Tętno (bpm)',
                                         data: hrData,
-                                        borderColor: '#ef4444',
+                                        borderColor: '#fb7185',
                                         backgroundColor: 'transparent',
                                         fill: false,
                                         borderWidth: 1.5,
@@ -388,21 +444,23 @@
                                 },
                                 scales: {
                                     x: {
-                                        ticks: { maxTicksLimit: 12 },
+                                        ticks: { maxTicksLimit: 12, color: '#94a3b8' },
                                         grid: { display: false }
                                     },
                                     yPower: {
                                         type: 'linear',
                                         position: 'left',
-                                        title: { display: true, text: 'Moc [W]' },
+                                        title: { display: true, text: 'Moc [W]', color: '#94a3b8' },
                                         beginAtZero: true,
-                                        grid: { color: 'rgba(0,0,0,0.05)' }
+                                        ticks: { color: '#94a3b8' },
+                                        grid: { color: 'rgba(255, 255, 255, 0.05)' }
                                     },
                                     yHr: {
                                         type: 'linear',
                                         position: 'right',
-                                        title: { display: true, text: 'Tętno [bpm]' },
+                                        title: { display: true, text: 'Tętno [bpm]', color: '#94a3b8' },
                                         grid: { drawOnChartArea: false },
+                                        ticks: { color: '#94a3b8' },
                                         min: 40,
                                         max: 210
                                     }
@@ -410,7 +468,16 @@
                                 plugins: {
                                     legend: {
                                         position: 'top',
-                                        labels: { usePointStyle: true, boxWidth: 8 }
+                                        labels: { usePointStyle: true, boxWidth: 8, color: '#94a3b8' }
+                                    },
+                                    tooltip: {
+                                        backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                                        titleColor: '#f8fafc',
+                                        bodyColor: '#cbd5e1',
+                                        borderColor: 'rgba(255, 255, 255, 0.12)',
+                                        borderWidth: 1,
+                                        padding: 12,
+                                        cornerRadius: 8
                                     }
                                 }
                             }

@@ -8,6 +8,8 @@ namespace inzynierka.Services;
 
 public class FitParserService : IFitParserService
 {
+    private const int MaxSmartRecordingGapSeconds = 5;
+
     public async Task<ParsedFitData> ParseAsync(Stream fitStream, string fileName)
     {
         byte[] fileBytes;
@@ -24,8 +26,9 @@ public class FitParserService : IFitParserService
             fileHash = Convert.ToHexString(hashBytes);
         }
 
-        var records = new List<ActivityRecord>();
+        var rawRecords = new List<ActivityRecord>();
         var startTime = DateTime.UtcNow;
+        int? totalWorkKj = null;
         int totalTimerTime = 0;
         decimal totalDistance = 0;
         int totalAscent = 0;
@@ -80,7 +83,7 @@ public class FitParserService : IFitParserService
                 Longitude = lng
             };
 
-            records.Add(record);
+            rawRecords.Add(record);
         };
 
         mesgBroadcaster.SessionMesgEvent += (sender, e) =>
@@ -108,13 +111,19 @@ public class FitParserService : IFitParserService
                 totalAscent = (int)sessionMesg.GetTotalAscent()!.Value;
             }
 
+            var fitWork = sessionMesg.GetTotalWork();
+            if (fitWork.HasValue && fitWork.Value > 0)
+            {
+                totalWorkKj = (int)Math.Round(fitWork.Value / 1000.0);
+            }
+
             sessionAvgHr = sessionMesg.GetAvgHeartRate();
             sessionMaxHr = sessionMesg.GetMaxHeartRate();
 
             var fitSport = sessionMesg.GetSport();
             var fitSubSport = sessionMesg.GetSubSport();
 
-            rawSportName = fitSport.ToString();
+            rawSportName = fitSport?.ToString() ?? "Nieznany";
 
             if (fitSport == Sport.Cycling)
             {
@@ -131,7 +140,7 @@ public class FitParserService : IFitParserService
 
         decode.Read(decodeStream);
 
-        if (!isCyclingSession && records.Any(r => r.Power.HasValue && r.Power.Value > 0))
+        if (!isCyclingSession && rawRecords.Any(r => r.Power.HasValue && r.Power.Value > 0))
         {
             isCyclingSession = true;
             detectedSport = SportType.Road;
@@ -141,6 +150,8 @@ public class FitParserService : IFitParserService
         {
             throw new InvalidOperationException($"Plik nie zawiera aktywności kolarskiej (wykryto: {rawSportName}). Aplikacja obsługuje wyłącznie sesje rowerowe.");
         }
+
+        var records = NormalizeTo1Hz(rawRecords);
 
         if (records.Count > 0)
         {
@@ -158,7 +169,7 @@ public class FitParserService : IFitParserService
             }
         }
 
-        string defaultTitle = $"{detectedSport} - {startTime:yyyy-MM-dd HH:mm}";
+        string defaultTitle = $"{detectedSport} {startTime:yyyy-MM-dd HH:mm}";
 
         return new ParsedFitData(
             Title: defaultTitle,
@@ -171,7 +182,68 @@ public class FitParserService : IFitParserService
             FileHash: fileHash,
             AvgHeartRate: sessionAvgHr,
             MaxHeartRate: sessionMaxHr,
-            Records: records
+            Records: records,
+            TotalWorkKj: totalWorkKj
         );
+    }
+
+    private static List<ActivityRecord> NormalizeTo1Hz(List<ActivityRecord> rawRecords)
+    {
+        if (rawRecords.Count < 2) return rawRecords;
+
+        var sorted = rawRecords
+            .GroupBy(r => r.Timestamp)
+            .Select(g => g.Last())
+            .OrderBy(r => r.Timestamp)
+            .ToList();
+
+        var normalized = new List<ActivityRecord>(sorted.Count * 2);
+
+        for (int i = 0; i < sorted.Count - 1; i++)
+        {
+            var current = sorted[i];
+            var next = sorted[i + 1];
+            normalized.Add(current);
+
+            int gapSeconds = (int)(next.Timestamp - current.Timestamp).TotalSeconds;
+
+            if (gapSeconds > 1 && gapSeconds <= MaxSmartRecordingGapSeconds)
+            {
+                for (int s = 1; s < gapSeconds; s++)
+                {
+                    double ratio = (double)s / gapSeconds;
+
+                    var syntheticRecord = new ActivityRecord
+                    {
+                        Timestamp = current.Timestamp.AddSeconds(s),
+                        Power = current.Power,
+                        HeartRate = current.HeartRate,
+                        Cadence = current.Cadence,
+                        SpeedKmh = InterpolateDecimal(current.SpeedKmh, next.SpeedKmh, ratio),
+                        AltitudeMeters = InterpolateDecimal(current.AltitudeMeters, next.AltitudeMeters, ratio),
+                        DistanceMeters = InterpolateDecimal(current.DistanceMeters, next.DistanceMeters, ratio),
+                        Latitude = InterpolateDouble(current.Latitude, next.Latitude, ratio),
+                        Longitude = InterpolateDouble(current.Longitude, next.Longitude, ratio)
+                    };
+
+                    normalized.Add(syntheticRecord);
+                }
+            }
+        }
+
+        normalized.Add(sorted[^1]);
+        return normalized;
+    }
+
+    private static decimal? InterpolateDecimal(decimal? start, decimal? end, double ratio)
+    {
+        if (!start.HasValue || !end.HasValue) return start ?? end;
+        return Math.Round(start.Value + (end.Value - start.Value) * (decimal)ratio, 2);
+    }
+
+    private static double? InterpolateDouble(double? start, double? end, double ratio)
+    {
+        if (!start.HasValue || !end.HasValue) return start ?? end;
+        return start.Value + (end.Value - start.Value) * ratio;
     }
 }

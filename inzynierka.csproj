@@ -7,7 +7,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Dynastream.Fit.Portable.dll" Version="1.0.1" />
+    <PackageReference Include="Garmin.FIT.Sdk" Version="21.221.0" />
     <PackageReference Include="Microsoft.Data.Sqlite.Core" Version="10.0.11" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.11" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Abstractions" Version="10.0.11" />
@@ -22,5 +22,11 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
   </ItemGroup>
+	<ItemGroup>
+		<Compile Remove="inzynierka.Tests\**" />
+		<Content Remove="inzynierka.Tests\**" />
+		<EmbeddedResource Remove="inzynierka.Tests\**" />
+		<None Remove="inzynierka.Tests\**" />
+	</ItemGroup>
 
 </Project>

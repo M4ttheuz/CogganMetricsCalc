@@ -7,21 +7,16 @@ using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Rejestracja kontrolerów i widoków
 builder.Services.AddControllersWithViews();
 
-// Konfiguracja SQLite
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-// Wstrzykiwanie zależności (DI)
 builder.Services.AddScoped<ICogganCalculator, CogganCalculator>();
 builder.Services.AddScoped<IFitParserService, FitParserService>();
 builder.Services.AddScoped<IActivityService, ActivityService>();
 builder.Services.AddScoped<IPmcService, PmcService>();
-// Brak background worker w dla uploadu - przywr cono synchroniczne przetwarzanie
 
-// Uwierzytelnianie ciasteczkowe z weryfikacją obecności usera w bazie
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
     {
@@ -47,9 +42,14 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         };
     });
 
+builder.Services.AddRouting(options =>
+{
+    options.LowercaseUrls = true;
+    options.LowercaseQueryStrings = true;
+});
+
 var app = builder.Build();
 
-// Pipeline HTTP
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Home/Error");
@@ -68,7 +68,6 @@ app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Activity}/{action=Index}/{id?}");
 
-// Migracje bazy i tryb WAL
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();

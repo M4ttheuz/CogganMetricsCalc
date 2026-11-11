@@ -41,6 +41,7 @@ public class ActivityService : IActivityService
             throw new InvalidOperationException("Ten plik treningowy został już wcześniej przez Ciebie wgrany.");
         }
 
+        // Pobranie historii progów FTP
         var ftpHistory = await _context.UserFtpHistories
             .Where(f => f.UserId == userId)
             .OrderByDescending(f => f.EffectiveDate)
@@ -52,13 +53,22 @@ public class ActivityService : IActivityService
 
         if (effectiveFtp <= 0) effectiveFtp = fallbackFtp;
 
+        // Pobranie historii masy ciała dla właściwej daty treningu
+        var weightHistory = await _context.UserWeightHistories
+            .Where(w => w.UserId == userId)
+            .OrderByDescending(w => w.EffectiveDate)
+            .ToListAsync();
+
+        var fallbackWeight = weightHistory.LastOrDefault()?.WeightKg ?? 70m;
+        var effectiveWeight = weightHistory
+            .FirstOrDefault(w => w.EffectiveDate <= parsedData.StartTime)?.WeightKg ?? fallbackWeight;
+
+        if (effectiveWeight <= 0) effectiveWeight = fallbackWeight;
+
         var powerStream = parsedData.Records.Select(r => r.Power).ToList();
         int durationForTss = parsedData.MovingTimeSeconds > 0 ? parsedData.MovingTimeSeconds : parsedData.DurationSeconds;
         var cogganResult = _cogganCalculator.Calculate(powerStream, effectiveFtp, durationForTss);
-
-        var user = await _context.Users.FindAsync(userId);
-        var userWeight = user?.WeightKg;
-        var calculatedPeaks = _cogganCalculator.CalculatePowerPeaks(powerStream, userWeight);
+        var calculatedPeaks = _cogganCalculator.CalculatePowerPeaks(powerStream, effectiveWeight);
 
         var activity = new Activity
         {
@@ -78,7 +88,7 @@ public class ActivityService : IActivityService
                 NormalizedPower = cogganResult.NormalizedPower,
                 IntensityFactor = cogganResult.IntensityFactor,
                 TrainingStressScore = cogganResult.TrainingStressScore,
-                WorkKj = cogganResult.WorkKj,
+                WorkKj = parsedData.TotalWorkKj ?? cogganResult.WorkKj,
                 AvgPower = cogganResult.AvgPower,
                 MaxPower = cogganResult.MaxPower,
                 AvgHeartRate = parsedData.AvgHeartRate,
@@ -94,6 +104,7 @@ public class ActivityService : IActivityService
 
         _context.Activities.Add(activity);
         await _context.SaveChangesAsync();
+
         if (recalculatePmc)
         {
             await _pmcService.RecalculatePmcAsync(userId);
@@ -127,8 +138,12 @@ public class ActivityService : IActivityService
         var messages = new ConcurrentBag<string>();
         int skippedCount = 0;
 
-        var user = await _context.Users.FindAsync(userId);
-        var userWeight = user?.WeightKg;
+        var weightHistory = await _context.UserWeightHistories
+            .Where(w => w.UserId == userId)
+            .OrderByDescending(w => w.EffectiveDate)
+            .ToListAsync();
+
+        var fallbackWeight = weightHistory.LastOrDefault()?.WeightKg ?? 70m;
 
         var ftpHistory = await _context.UserFtpHistories
             .Where(f => f.UserId == userId)
@@ -180,10 +195,14 @@ public class ActivityService : IActivityService
                     .FirstOrDefault(f => f.EffectiveDate <= parsedData.StartTime)?.FtpValue ?? fallbackFtp;
                 if (effectiveFtp <= 0) effectiveFtp = fallbackFtp;
 
+                var effectiveWeight = weightHistory
+                    .FirstOrDefault(w => w.EffectiveDate <= parsedData.StartTime)?.WeightKg ?? fallbackWeight;
+                if (effectiveWeight <= 0) effectiveWeight = fallbackWeight;
+
                 var powerStream = parsedData.Records.Select(r => r.Power).ToList();
                 int durationForTss = parsedData.MovingTimeSeconds > 0 ? parsedData.MovingTimeSeconds : parsedData.DurationSeconds;
                 var cogganResult = _cogganCalculator.Calculate(powerStream, effectiveFtp, durationForTss);
-                var calculatedPeaks = _cogganCalculator.CalculatePowerPeaks(powerStream, userWeight);
+                var calculatedPeaks = _cogganCalculator.CalculatePowerPeaks(powerStream, effectiveWeight);
 
                 var activity = new Activity
                 {
@@ -257,5 +276,38 @@ public class ActivityService : IActivityService
         }
 
         return new BulkUploadResult(successCount, skippedCount, messages.ToList());
+    }
+
+    public async Task RecalculateWeightHistoryAsync(int userId)
+    {
+        var userExists = await _context.Users.AnyAsync(u => u.Id == userId);
+        if (!userExists) return;
+
+        var weightHistory = await _context.UserWeightHistories
+            .Where(w => w.UserId == userId)
+            .OrderByDescending(w => w.EffectiveDate)
+            .ToListAsync();
+
+        var fallbackWeight = weightHistory.LastOrDefault()?.WeightKg ?? 70m;
+
+        var activities = await _context.Activities
+            .Where(a => a.UserId == userId)
+            .Include(a => a.PowerPeaks)
+            .ToListAsync();
+
+        foreach (var activity in activities)
+        {
+            var effectiveWeight = weightHistory
+                .FirstOrDefault(w => w.EffectiveDate <= activity.StartTime)?.WeightKg ?? fallbackWeight;
+
+            if (effectiveWeight <= 0) effectiveWeight = fallbackWeight;
+
+            foreach (var peak in activity.PowerPeaks)
+            {
+                peak.WattsPerKg = Math.Round((decimal)peak.Watts / effectiveWeight, 2);
+            }
+        }
+
+        await _context.SaveChangesAsync();
     }
 }

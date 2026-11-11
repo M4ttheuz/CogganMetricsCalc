@@ -1,107 +1,201 @@
 :root {
-    --bs-body-bg: #f8fafc;
-    --bs-body-color: #1e293b;
-    --card-radius: 12px;
+    --bs-body-bg: #0f172a;
+    --bs-body-color: #f8fafc;
+    --card-bg: #1e293b;
+    --card-hover: #26354d;
+    --surface-dark: #0f172a;
+    --border-subtle: rgba(255, 255, 255, 0.08);
+    --text-bright: #f8fafc;
+    --text-dim: #94a3b8;
+    --card-radius: 14px;
+    /* Sportowe akcenty */
+    --accent-blue: #38bdf8;
+    --accent-red: #fb7185;
+    --accent-amber: #fbbf24;
+    --accent-green: #34d399;
 }
 
 body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     background-color: var(--bs-body-bg);
+    color: var(--bs-body-color);
 }
 
-/* Kafelki dashboardu */
+/* Globalne nadpisania Bootstrapa dla spójności ciemnego motywu na wszystkich widokach */
+.text-dark {
+    color: var(--text-bright) !important;
+}
+
+.text-muted {
+    color: var(--text-dim) !important;
+}
+
+.bg-white {
+    background-color: var(--card-bg) !important;
+    color: var(--text-bright);
+}
+
+.bg-light {
+    background-color: var(--surface-dark) !important;
+    color: var(--text-bright) !important;
+}
+
+.border, .border-bottom, .border-top {
+    border-color: var(--border-subtle) !important;
+}
+
+/* Kafelki dashboardu i karty */
 .card {
     border-radius: var(--card-radius);
-    border: 1px solid rgba(226, 232, 240, 0.9);
-    background-color: #ffffff;
-    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05);
-    transition: box-shadow 0.2s ease, transform 0.2s ease;
+    border: 1px solid var(--border-subtle) !important;
+    background-color: var(--card-bg);
+    color: var(--text-bright);
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3) !important;
+    transition: box-shadow 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
 }
 
     .card:hover {
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+        box-shadow: 0 15px 30px -5px rgba(0, 0, 0, 0.45) !important;
+        border-color: rgba(56, 189, 248, 0.25) !important;
     }
 
 .card-header {
+    background-color: var(--card-bg) !important;
     border-top-left-radius: var(--card-radius) !important;
     border-top-right-radius: var(--card-radius) !important;
-    border-bottom: 1px solid #f1f5f9;
+    border-bottom: 1px solid var(--border-subtle) !important;
     font-weight: 600;
+    color: var(--text-bright);
 }
 
-/* Górne kafelki metryk (KPI) */
+/* Karta masowego importu */
+.upload-cta-card {
+    background: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%) !important;
+    border: 1px solid rgba(255, 255, 255, 0.15) !important;
+}
+
+/* Ikony w górnych kafelkach KPI na Dashboardzie */
+.kpi-icon {
+    width: 42px;
+    height: 42px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+    font-size: 1.2rem;
+}
+
+/* Górne kafelki metryk w widoku Details (KPI) - scalone */
 .metric-tile {
     border-radius: var(--card-radius);
-    background: #ffffff;
-    border: 1px solid #e2e8f0;
-    padding: 1.25rem 1rem;
+    background: var(--card-bg);
+    border: 1px solid var(--border-subtle);
+    border-left: 4px solid #64748b;
+    padding: 1.15rem;
+    height: 100%;
     position: relative;
     overflow: hidden;
 }
 
-    .metric-tile::before {
-        content: "";
-        position: absolute;
-        left: 0;
-        top: 0;
-        bottom: 0;
-        width: 4px;
+    .metric-tile.np-tile {
+        border-left-color: var(--accent-blue);
     }
 
-    .metric-tile.np-tile::before {
-        background-color: #0284c7;
+    .metric-tile.tss-tile {
+        border-left-color: var(--accent-red);
     }
 
-    .metric-tile.tss-tile::before {
-        background-color: #ef4444;
+    .metric-tile.if-tile {
+        border-left-color: var(--accent-amber);
     }
 
-    .metric-tile.if-tile::before {
-        background-color: #f59e0b;
-    }
-
-    .metric-tile.work-tile::before {
-        background-color: #10b981;
+    .metric-tile.work-tile {
+        border-left-color: var(--accent-green);
     }
 
 .metric-label {
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    font-weight: 600;
-    color: #64748b;
+    font-weight: 700;
+    color: var(--text-dim);
     margin-bottom: 0.25rem;
 }
 
 .metric-val {
-    font-size: 1.9rem;
+    font-size: 1.85rem;
     font-weight: 700;
-    line-height: 1.1;
-    color: #0f172a;
+    line-height: 1.15;
+    margin: 0.25rem 0;
+    color: var(--text-bright);
+    font-variant-numeric: tabular-nums;
 }
 
 .metric-sub {
-    font-size: 0.85rem;
-    color: #64748b;
+    font-size: 0.825rem;
+    color: var(--text-dim);
     margin-top: 0.25rem;
 }
 
-/* Kafelki rekordów mocy (Peak watts) */
+/* Kafelki rekordów mocy (Peak watts) - scalone */
 .peak-pill {
-    background: #f8fafc;
-    border: 1px solid #e2e8f0;
-    border-radius: 8px;
+    background: var(--surface-dark);
+    border: 1px solid var(--border-subtle);
+    border-radius: 10px;
     padding: 0.65rem 0.5rem;
     text-align: center;
     transition: all 0.15s ease-in-out;
+    font-variant-numeric: tabular-nums;
 }
 
     .peak-pill:hover {
-        background: #ffffff;
-        border-color: #cbd5e1;
+        background: var(--card-hover);
+        border-color: var(--accent-blue);
         transform: translateY(-2px);
     }
 
+.peak-watts-per-kg-unit {
+    font-size: 0.75rem;
+    color: var(--text-dim);
+}
+
+/* Lista ostatnich aktywności i pastylki (NP, TSS, IF) */
+.list-group-item {
+    background-color: transparent !important;
+    color: var(--text-bright);
+    border-color: var(--border-subtle) !important;
+    transition: background-color 0.15s ease, padding-left 0.15s ease;
+    border-radius: 8px;
+}
+
+    .list-group-item:hover {
+        background-color: var(--card-hover) !important;
+    }
+
+.activity-metric-badge {
+    min-width: 62px;
+    background-color: var(--surface-dark) !important;
+    border: 1px solid var(--border-subtle) !important;
+    border-radius: 8px;
+    font-variant-numeric: tabular-nums;
+}
+
+.activity-metric-badge--np {
+    min-width: 68px;
+}
+
+.activity-metric-label {
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-weight: 700;
+}
+
+.tabular-nums {
+    font-variant-numeric: tabular-nums;
+}
+
+/* Nawigacja i Mapa */
 .navbar-nav .nav-link:hover {
     background-color: rgba(255, 255, 255, 0.1);
 }
@@ -109,7 +203,8 @@ body {
 #activityMap {
     height: 380px;
     width: 100%;
-    border-radius: 8px;
+    border-radius: 10px;
+    border: 1px solid var(--border-subtle);
 }
 
 .current-marker-dot {
@@ -120,58 +215,7 @@ body {
     transition: all 0.05s ease-out;
 }
 
-.metric-tile {
-    background: #ffffff;
-    border-radius: 10px;
-    padding: 1.1rem;
-    height: 100%;
-    border-left: 4px solid #cbd5e1;
-}
-
-    .metric-tile.np-tile {
-        border-left-color: #0284c7;
-    }
-
-    .metric-tile.tss-tile {
-        border-left-color: #ef4444;
-    }
-
-    .metric-tile.if-tile {
-        border-left-color: #f59e0b;
-    }
-
-    .metric-tile.work-tile {
-        border-left-color: #10b981;
-    }
-
-.metric-label {
-    font-size: 0.8rem;
-    text-transform: uppercase;
-    font-weight: 600;
-    color: #64748b;
-    letter-spacing: 0.5px;
-}
-
-.metric-val {
-    font-size: 1.85rem;
-    font-weight: 700;
-    line-height: 1.2;
-    margin: 0.35rem 0;
-}
-
-.metric-sub {
-    font-size: 0.825rem;
-    color: #64748b;
-}
-
-.peak-pill {
-    background: #f8fafc;
-    border: 1px solid #e2e8f0;
-    border-radius: 8px;
-    padding: 0.6rem 0.4rem;
-    text-align: center;
-}
-
+/* Wykresy i kontenery */
 .auth-icon {
     font-size: 2.5rem;
 }
@@ -205,37 +249,25 @@ body {
     max-width: 450px;
 }
 
-.peak-watts-per-kg-unit {
-    font-size: 0.75rem;
-}
-
-.activity-metric-badge {
-    min-width: 50px;
-}
-
-.activity-metric-badge--np {
-    min-width: 55px;
-}
-
-.activity-metric-label {
-    font-size: 0.65rem;
-}
-
+/* Strefa Uploadu (.fit) */
 .upload-drop-zone {
-    border-color: #cbd5e1 !important;
+    background-color: var(--surface-dark);
+    border-color: rgba(255, 255, 255, 0.15) !important;
+    border-radius: var(--card-radius);
     cursor: pointer;
     transition: all 0.2s;
 }
 
-.upload-drop-zone.is-dragging {
-    background-color: #e2e8f0 !important;
-    border-color: #0284c7 !important;
-}
+    .upload-drop-zone:hover,
+    .upload-drop-zone.is-dragging {
+        background-color: var(--card-hover) !important;
+        border-color: var(--accent-blue) !important;
+    }
 
-.upload-drop-zone.is-disabled {
-    pointer-events: none;
-    opacity: 0.5;
-}
+    .upload-drop-zone.is-disabled {
+        pointer-events: none;
+        opacity: 0.5;
+    }
 
 .upload-file-list {
     max-height: 220px;
@@ -245,6 +277,7 @@ body {
 .upload-progress {
     height: 12px;
     border-radius: 6px;
+    background-color: var(--surface-dark);
 }
 
 .upload-progress-bar {
@@ -261,4 +294,81 @@ body {
 
 .is-hidden {
     display: none !important;
+}
+
+.navbar-velo {
+    background-color: rgba(15, 23, 42, 0.85) !important;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border-subtle);
+    padding: 0.65rem 0;
+}
+
+.brand-icon-box {
+    width: 34px;
+    height: 34px;
+    border-radius: 9px;
+    background: rgba(56, 189, 248, 0.12);
+    color: var(--accent-blue);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    border: 1px solid rgba(56, 189, 248, 0.25);
+}
+
+.navbar-velo .nav-link {
+    color: var(--text-dim);
+    font-weight: 500;
+    font-size: 0.92rem;
+    transition: all 0.15s ease;
+}
+
+    .navbar-velo .nav-link:hover {
+        color: var(--text-bright);
+        background-color: rgba(255, 255, 255, 0.05);
+    }
+
+    .navbar-velo .nav-link.active {
+        color: var(--accent-blue) !important;
+        background-color: rgba(56, 189, 248, 0.1);
+        font-weight: 600;
+    }
+
+/* Wyróżniony przycisk Import FIT w menu */
+.nav-link-upload {
+    border: 1px dashed rgba(56, 189, 248, 0.35);
+    color: var(--accent-blue) !important;
+}
+
+    .nav-link-upload:hover {
+        background-color: rgba(56, 189, 248, 0.12) !important;
+        border-style: solid;
+    }
+
+.user-pill {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-subtle);
+    padding: 0.35rem 0.75rem;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    color: var(--text-bright);
+}
+
+.btn-logout {
+    background-color: rgba(251, 113, 133, 0.1);
+    color: var(--accent-red);
+    border: 1px solid rgba(251, 113, 133, 0.2);
+    border-radius: 8px;
+    padding: 0.35rem 0.75rem;
+}
+
+    .btn-logout:hover {
+        background-color: var(--accent-red);
+        color: #fff;
+    }
+
+.footer-velo {
+    background-color: var(--surface-dark);
+    border-top: 1px solid var(--border-subtle);
 }

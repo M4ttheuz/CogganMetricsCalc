@@ -20,11 +20,11 @@
                     <p class="text-muted small">Przeciągnij lub wskaż pliki <code>.fit</code> ze swojego licznika lub trenażera</p>
                 </div>
 
-                <div id="dropZone" class="upload-drop-zone border border-2 border-dashed rounded p-5 text-center bg-light mb-4">
+                <div id="dropZone" class="upload-drop-zone border border-2 border-dashed rounded p-5 text-center bg-light mb-4" style="cursor: pointer; transition: all 0.2s ease;">
                     <i class="bi bi-file-earmark-arrow-up fs-1 text-muted"></i>
                     <h6 class="fw-bold mt-3 mb-1">Przeciągnij pliki tutaj</h6>
-                    <p class="text-muted small mb-3">lub kliknij, aby wybrać z dysku (możesz zaznaczyć wiele)</p>
-                    <button type="button" class="btn btn-sm btn-outline-primary fw-semibold" onclick="document.getElementById('fileInput').click()">
+                    <p class="text-muted small mb-3">lub kliknij w dowolnym miejscu, aby wybrać z dysku (możesz zaznaczyć wiele)</p>
+                    <button type="button" class="btn btn-sm btn-outline-primary fw-semibold">
                         Wybierz pliki
                     </button>
                     <input type="file" id="fileInput" multiple accept=".fit" class="d-none" />
@@ -45,20 +45,26 @@
                         <span id="statusText">Przygotowywanie importu...</span>
                         <span id="percentText" class="fw-bold text-dark">0%</span>
                     </div>
-                    <div class="progress upload-progress">
-                        <div id="uploadProgressBar" class="progress-bar progress-bar-striped progress-bar-animated bg-primary upload-progress-bar" role="progressbar"></div>
+                    <div class="progress upload-progress" style="height: 10px;">
+                        <div id="uploadProgressBar" class="progress-bar progress-bar-striped progress-bar-animated bg-primary" role="progressbar" style="width: 0%"></div>
                     </div>
                 </div>
 
                 <div id="resultBox" class="mb-4 is-hidden"></div>
 
-                <div class="d-grid gap-2">
-                    <button type="button" id="startUploadBtn" class="btn btn-primary py-2 fw-semibold" disabled>
+                <div>
+                    <button type="button" id="startUploadBtn" class="btn btn-primary py-2 fw-semibold w-100" disabled>
                         <i class="bi bi-cpu me-1"></i> Rozpocznij import danych
                     </button>
-                    <a asp-action="Index" id="dashboardReturnBtn" class="btn btn-outline-dark py-2 fw-semibold is-hidden">
-                        Przejdź do pulpitu aktywności &rarr;
-                    </a>
+
+                    <div id="postUploadActions" class="d-flex gap-2 is-hidden">
+                        <button type="button" id="retryUploadBtn" class="btn btn-outline-secondary py-2 fw-semibold w-50">
+                            <i class="bi bi-arrow-clockwise me-1"></i> Wgraj kolejne pliki
+                        </button>
+                        <a asp-action="Index" id="dashboardReturnBtn" class="btn btn-primary py-2 fw-semibold w-50 text-center">
+                            Przejdź do pulpitu →
+                        </a>
+                    </div>
                 </div>
 
             </div>
@@ -84,26 +90,38 @@
         const statusText = document.getElementById('statusText');
         const percentText = document.getElementById('percentText');
         const resultBox = document.getElementById('resultBox');
-        const dashboardReturnBtn = document.getElementById('dashboardReturnBtn');
+        const postUploadActions = document.getElementById('postUploadActions');
+        const retryUploadBtn = document.getElementById('retryUploadBtn');
 
         const maxFileSizeBytes = 50 * 1024 * 1024;
         let selectedFiles = [];
 
+        dropZone.addEventListener('click', (e) => {
+            if (dropZone.classList.contains('is-disabled')) return;
+            fileInput.click();
+        });
+
+        fileInput.addEventListener('click', (e) => {
+            e.stopPropagation();
+        });
+
         ['dragenter', 'dragover'].forEach(name => {
             dropZone.addEventListener(name, (e) => {
                 e.preventDefault();
-                dropZone.classList.add('is-dragging');
+                if (dropZone.classList.contains('is-disabled')) return;
+                dropZone.classList.add('is-dragging', 'border-primary', 'bg-white');
             });
         });
 
         ['dragleave', 'drop'].forEach(name => {
             dropZone.addEventListener(name, (e) => {
                 e.preventDefault();
-                dropZone.classList.remove('is-dragging');
+                dropZone.classList.remove('is-dragging', 'border-primary', 'bg-white');
             });
         });
 
         dropZone.addEventListener('drop', (e) => {
+            if (dropZone.classList.contains('is-disabled')) return;
             const files = Array.from(e.dataTransfer.files).filter(f => f.name.toLowerCase().endsWith('.fit'));
             addFiles(files);
         });
@@ -141,7 +159,6 @@
                 const li = document.createElement('li');
                 li.id = `file-item-${index}`;
                 li.className = 'list-group-item d-flex justify-content-between align-items-center bg-white px-2 py-1 mb-1 rounded border';
-                const sizeKb = (file.size / 1024).toFixed(0);
                 li.innerHTML = `
                     <span class="text-truncate upload-file-name">
                         <i class="bi bi-file-earmark me-1 text-primary"></i>${file.name}
@@ -154,17 +171,30 @@
             clearFilesBtn.classList.toggle('is-hidden', selectedFiles.length === 0);
         }
 
-        clearFilesBtn.addEventListener('click', () => {
+        function resetForm() {
             selectedFiles = [];
             fileInput.value = '';
             renderFileList();
-        });
+            dropZone.classList.remove('is-disabled');
+            dropZone.style.pointerEvents = 'auto';
+            dropZone.style.opacity = '1';
+            startUploadBtn.classList.remove('is-hidden');
+            startUploadBtn.disabled = true;
+            postUploadActions.classList.add('is-hidden');
+            progressSection.classList.add('is-hidden');
+            resultBox.classList.add('is-hidden');
+        }
+
+        clearFilesBtn.addEventListener('click', resetForm);
+        retryUploadBtn.addEventListener('click', resetForm);
 
         startUploadBtn.addEventListener('click', async () => {
             if (selectedFiles.length === 0) return;
 
             startUploadBtn.disabled = true;
             dropZone.classList.add('is-disabled');
+            dropZone.style.pointerEvents = 'none';
+            dropZone.style.opacity = '0.6';
             clearFilesBtn.classList.add('is-hidden');
             progressSection.classList.remove('is-hidden');
             resultBox.classList.add('is-hidden');
@@ -174,68 +204,99 @@
             let successCount = 0;
             let skippedCount = 0;
 
-            for (let i = 0; i < total; i++) {
-                const file = selectedFiles[i];
-                const itemElem = document.getElementById(`file-item-${i}`);
-                const statusBadge = itemElem.querySelector('.file-status');
+            try {
+                for (let i = 0; i < total; i++) {
+                    const file = selectedFiles[i];
+                    const itemElem = document.getElementById(`file-item-${i}`);
+                    const statusBadge = itemElem ? itemElem.querySelector('.file-status') : null;
 
-                statusBadge.className = 'badge bg-primary upload-file-status';
-                statusBadge.innerText = 'Przetwarzanie...';
-
-                statusText.innerText = `Przetwarzanie: ${file.name} (${i + 1}/${total})`;
-                const currentPercent = Math.round((i / total) * 100);
-                uploadProgressBar.style.width = `${currentPercent}%`;
-                percentText.innerText = `${currentPercent}%`;
-
-                const formData = new FormData();
-                formData.append('file', file);
-
-                try {
-                    const response = await fetch('/Activity/UploadSingleChunk', {
-                        method: 'POST',
-                        headers: { 'RequestVerificationToken': token },
-                        body: formData
-                    });
-
-                    const res = await response.json();
-                    if (res.success) {
-                        successCount++;
-                        statusBadge.className = 'badge bg-success upload-file-status';
-                        statusBadge.innerHTML = '<i class="bi bi-check2"></i> Gotowe';
-                    } else {
-                        skippedCount++;
-                        statusBadge.className = 'badge bg-danger upload-file-status';
-                        statusBadge.title = res.message;
-                        statusBadge.innerHTML = '<i class="bi bi-x-circle"></i> Pominięto';
+                    if (statusBadge) {
+                        statusBadge.className = 'badge bg-primary upload-file-status';
+                        statusBadge.innerText = 'Przetwarzanie...';
                     }
-                } catch (e) {
-                    skippedCount++;
-                    statusBadge.className = 'badge bg-danger upload-file-status';
-                    statusBadge.innerText = 'Błąd sieci';
+
+                    statusText.innerText = `Przetwarzanie: ${file.name} (${i + 1}/${total})`;
+                    const currentPercent = Math.round((i / total) * 100);
+                    uploadProgressBar.style.width = `${currentPercent}%`;
+                    percentText.innerText = `${currentPercent}%`;
+
+                    const formData = new FormData();
+                    formData.append('file', file);
+
+                    try {
+                        const response = await fetch('/Activity/UploadSingleChunk', {
+                            method: 'POST',
+                            headers: { 'RequestVerificationToken': token },
+                            body: formData
+                        });
+
+                        if (!response.ok) {
+                            throw new Error(`Serwer zwrócił błąd HTTP: ${response.status}`);
+                        }
+
+                        const res = await response.json();
+                        if (res.success) {
+                            successCount++;
+                            if (statusBadge) {
+                                statusBadge.className = 'badge bg-success upload-file-status';
+                                statusBadge.innerHTML = '<i class="bi bi-check2"></i> Gotowe';
+                            }
+                        } else {
+                            skippedCount++;
+                            if (statusBadge) {
+                                statusBadge.className = 'badge bg-warning text-dark upload-file-status';
+                                statusBadge.title = res.message || 'Pominięto';
+                                statusBadge.innerHTML = '<i class="bi bi-exclamation-circle"></i> Pominięto';
+                            }
+                        }
+                    } catch (e) {
+                        skippedCount++;
+                        if (statusBadge) {
+                            statusBadge.className = 'badge bg-danger upload-file-status';
+                            statusBadge.title = e.message;
+                            statusBadge.innerText = 'Błąd';
+                        }
+                    }
                 }
+
+                uploadProgressBar.style.width = '100%';
+                percentText.innerText = '100%';
+                statusText.innerText = 'Aktualizacja wykresu formy (CTL / ATL / TSB)...';
+
+                await fetch('/Activity/FinishBulkUpload', {
+                    method: 'POST',
+                    headers: { 'RequestVerificationToken': token }
+                });
+
+                progressSection.classList.add('is-hidden');
+                startUploadBtn.classList.add('is-hidden');
+                postUploadActions.classList.remove('is-hidden');
+
+                let alertType = skippedCount > 0 && successCount > 0 ? 'alert-warning' : (successCount > 0 ? 'alert-success' : 'alert-danger');
+                resultBox.innerHTML = `
+                    <div class="alert ${alertType} border-0 shadow-sm p-3">
+                        <h6 class="fw-bold mb-1">Import zakończony!</h6>
+                        <small>Zaimportowano poprawnie: <strong>${successCount}</strong>, pominięto/błędy: <strong>${skippedCount}</strong>.</small>
+                    </div>
+                `;
+                resultBox.classList.remove('is-hidden');
+
+            } catch (fatalError) {
+                progressSection.classList.add('is-hidden');
+                dropZone.classList.remove('is-disabled');
+                dropZone.style.pointerEvents = 'auto';
+                dropZone.style.opacity = '1';
+                startUploadBtn.disabled = false;
+                clearFilesBtn.classList.remove('is-hidden');
+
+                resultBox.innerHTML = `
+                    <div class="alert alert-danger border-0 shadow-sm p-3">
+                        <h6 class="fw-bold mb-1"><i class="bi bi-exclamation-triangle-fill me-1"></i> Wystąpił błąd krytyczny</h6>
+                        <small>${fatalError.message || 'Nie udało się nawiązać połączenia z serwerem'}. Możesz spróbować ponownie.</small>
+                    </div>
+                `;
+                resultBox.classList.remove('is-hidden');
             }
-
-            uploadProgressBar.style.width = '100%';
-            percentText.innerText = '100%';
-            statusText.innerText = 'Aktualizacja wykresu formy (CTL / ATL / TSB)...';
-
-            await fetch('/Activity/FinishBulkUpload', {
-                method: 'POST',
-                headers: { 'RequestVerificationToken': token }
-            });
-
-            progressSection.classList.add('is-hidden');
-            startUploadBtn.classList.add('is-hidden');
-            dashboardReturnBtn.classList.remove('is-hidden');
-
-            let alertType = skippedCount > 0 && successCount > 0 ? 'alert-warning' : (successCount > 0 ? 'alert-success' : 'alert-danger');
-            resultBox.innerHTML = `
-                <div class="alert ${alertType} border-0 shadow-sm p-3">
-                    <h6 class="fw-bold mb-1">Import zakończony!</h6>
-                    <small>Zaimportowano poprawnie: <strong>${successCount}</strong>, pominięto: <strong>${skippedCount}</strong>.</small>
-                </div>
-            `;
-            resultBox.classList.remove('is-hidden');
         });
     </script>
 }
